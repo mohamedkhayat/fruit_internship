@@ -5,7 +5,7 @@ defaults:
 batch_size: 32
 epochs: 10
 lr: 0.001
-weight_decay: 0.01
+weight_decay: 0.001
 warmup_epochs: 5
 root_dir: data/fruits-360
 log : True
@@ -13,3 +13,6 @@ seed : 42
 aug : hard
 n_images : 6
 input_size : 224
+freeze : False
+patience : 5
+delta : 0.001
