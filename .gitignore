@@ -192,3 +192,17 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+data/
+Training/
+Test/
+checkpoints/
+wandb/
+
+# But keep the empty directory structure:
+!data/.gitkeep
+!Training/.gitkeep
+!Test/.gitkeep
+!checkpoints/.gitkeep
+outputs
+
