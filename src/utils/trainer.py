@@ -120,26 +120,35 @@ def eval(model: nn.Module, device, test_dl, criterion, num_classes, current_epoc
     return loss, f1_score.item()
 
 
-def get_optimizer(model, backbone_lr=1e-5, head_lr=1e-3):
-    backbone_params = []
-    head_params = []
+def get_optimizer(
+    model, backbone_lr=1e-5, head_lr=1e-3, weight_decay=0.001, freeze=False
+):
+    if freeze:
+        backbone_params = []
+        head_params = []
 
-    for name, param in model.named_parameters():
-        if param.requires_grad:
-            if (
-                name.startswith("classifier")
-                or name == "fc.weight"
-                or name == "fc.bias"
-            ):
-                head_params.append(param)
-            else:
-                backbone_params.append(param)
+        for name, param in model.named_parameters():
+            if param.requires_grad:
+                if (
+                    name.startswith("classifier")
+                    or name == "fc.weight"
+                    or name == "fc.bias"
+                ):
+                    head_params.append(param)
+                else:
+                    backbone_params.append(param)
 
-    optimizer = torch.optim.AdamW(
-        [
-            {"params": backbone_params, "lr": backbone_lr},
-            {"params": head_params, "lr": head_lr},
-        ]
-    )
+        optimizer = torch.optim.AdamW(
+            [
+                {"params": backbone_params, "lr": backbone_lr},
+                {"params": head_params, "lr": head_lr},
+            ]
+        )
+    else:
+        optimizer = torch.optim.AdamW(
+            model.parameters(),
+            lr=head_lr,
+            weight_decay=weight_decay,
+        )
 
     return optimizer
