@@ -16,24 +16,13 @@ def get_transforms(processor, model):
         rescale_factor = processor.rescale_factor
         resample = processor.resample
         do_normalize = processor.do_normalize
-        if resample == 2:
-            interp = cv2.INTER_LINEAR
-        elif resample == 0:
-            interp = cv2.INTER_NEAREST
-        elif resample == 3:
-            interp = cv2.INTER_CUBIC
+        interp = cv2.INTER_CUBIC if resample == 2 else cv2.INTER_LINEAR
 
     elif model == "tiny_vit":
-        interp_map = {
-            "nearest": cv2.INTER_NEAREST,
-            "bilinear": cv2.INTER_LINEAR,
-            "bicubic": cv2.INTER_CUBIC,
-            0: cv2.INTER_NEAREST,
-            2: cv2.INTER_LINEAR,
-            3: cv2.INTER_CUBIC,
-            1: cv2.INTER_LANCZOS4,
-        }
-        resize_short_edge_to = 248
+        interp_map = {"bilinear": cv2.INTER_LINEAR, "bicubic": cv2.INTER_CUBIC}
+        interp = interp_map.get(processor["interpolation"], cv2.INTER_LINEAR)
+
+        resize_size = int(height / processor["crop_pct"])
 
         height, width = processor["input_size"][-2:]
         mean, std = processor["mean"], processor["std"]
@@ -47,8 +36,8 @@ def get_transforms(processor, model):
 
     elif model in ["efficientnet_v2_s", "efficientnet_b0"]:
         tv_preset = processor.transforms()
-        height = tv_preset.crop_size[0]
-        width = tv_preset.resize_size[0]
+        height = width = tv_preset.crop_size[0]
+        resize_size = tv_preset.resize_size[0]
         mean = tv_preset.mean
         std = tv_preset.std
         interp = cv2.INTER_LINEAR
@@ -74,18 +63,18 @@ def get_transforms(processor, model):
                 interpolation=interp,
             ),
         )
-        if model == "tiny_vit":
+
+        if model == "vit_base":
+            test_head_transforms = [
+                A.Resize(height=height, width=width, interpolation=interp),
+            ]
+
+        else:
             test_head_transforms.extend(
                 [
-                    A.SmallestMaxSize(
-                        max_size=resize_short_edge_to, interpolation=interp
-                    ),
+                    A.SmallestMaxSize(max_size=resize_size, interpolation=interp),
                     A.CenterCrop(height=height, width=width),
                 ]
-            )
-        else:
-            test_head_transforms.append(
-                A.Resize(height=height, width=width, interpolation=interp),
             )
 
     tail_transforms = []
