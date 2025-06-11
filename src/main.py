@@ -54,7 +54,7 @@ def main(cfg: DictConfig):
         train_samples, test_samples, labels, id2lbl, lbl2id
     )
 
-    train_dl, test_dl = make_dataloaders(train_ds, test_ds, cfg)
+    train_dl, test_dl = make_dataloaders(train_ds, test_ds, cfg, generator)
     n_classes = len(labels)
 
     model, transforms, mean, std, model_trans = get_model(
@@ -80,7 +80,10 @@ def main(cfg: DictConfig):
         model_trans,
         transforms["test"],
     )
+    import sys
+    sys.exit()
     """
+
     train_ds.transforms = transforms["train"]
     test_ds.transforms = transforms["test"]
 
@@ -90,16 +93,11 @@ def main(cfg: DictConfig):
             run, next(iter(train_dl)), cfg.n_images, train_ds.labels, cfg.aug, mean, std
         )
 
-    early_stopping = EarlyStopping(10, 0.001, "checkpoints", cfg.model.name)
+    early_stopping = EarlyStopping(cfg.patience, cfg.delta, "checkpoints", name)
 
     criterion = nn.CrossEntropyLoss()
 
-    # optimizer = get_optimizer(model, cfg.lr, cfg.lr / 100)
-    optimizer = AdamW(
-        model.parameters(),
-        lr=cfg.lr,
-        weight_decay=cfg.weight_decay,
-    )
+    optimizer = get_optimizer(model, cfg.lr, cfg.lr / 100, cfg.weight_decay, cfg.freeze)
 
     warmup_scheduler = LinearLR(
         optimizer, start_factor=0.1, total_iters=cfg.warmup_epochs
@@ -168,7 +166,6 @@ def main(cfg: DictConfig):
         model = early_stopping.get_best_model(model)
 
         run.finish()
-
 
 if __name__ == "__main__":
     main()
