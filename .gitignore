@@ -206,3 +206,5 @@ wandb/
 !checkpoints/.gitkeep
 outputs
 
+
+.vscode
