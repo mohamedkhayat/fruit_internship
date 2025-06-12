@@ -165,7 +165,7 @@ def main(cfg: DictConfig):
 
     if cfg.log:
         run.log({"best val f1": best_val_f1})
-        log_confusion_matrix(run,y_true,y_pred,labels)
+        log_confusion_matrix(run, y_true, y_pred, labels)
         model = early_stopping.get_best_model(model)
 
         run.finish()
