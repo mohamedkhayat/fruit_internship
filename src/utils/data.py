@@ -56,7 +56,7 @@ def make_dataloaders(train_ds: Dataset, test_ds: Dataset, cfg: DictConfig, gener
         train_ds,
         batch_size=cfg.batch_size,
         shuffle=True,
-        num_workers=4,
+        num_workers=cfg.num_workers if 'num_workers' in cfg else max(1, os.cpu_count() - 1),
         persistent_workers=True,
         pin_memory=True,
         drop_last=True,
