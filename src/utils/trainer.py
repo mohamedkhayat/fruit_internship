@@ -77,7 +77,10 @@ def train(
 def eval(model: nn.Module, device, test_dl, criterion, num_classes, current_epoch):
     forward_step = make_forward_step(model)
     model.eval()
+
     loss = 0.0
+    y_true = []
+    y_pred = []
 
     f1 = F1Score(
         task="multiclass",
@@ -113,15 +116,17 @@ def eval(model: nn.Module, device, test_dl, criterion, num_classes, current_epoc
                 "Batch": f"{batch_idx + 1}/{len(test_dl)}",
             }
         )
+        y_true.extend(y.cpu().numpy())
+        y_pred.extend(torch.argmax(out, dim = 1).cpu().numpy())
 
     f1_score = f1.compute()
     f1.reset()
     loss /= len(test_dl)
-    return loss, f1_score.item()
+    return loss, f1_score.item(), y_true, y_pred
 
 
 def get_optimizer(
-    model, backbone_lr=1e-5, head_lr=1e-3, weight_decay=0.001, freeze=False
+    model, head_lr=1e-5, backbone_lr=1e-3, weight_decay=0.001, freeze=False
 ):
     if freeze:
         backbone_params = []
