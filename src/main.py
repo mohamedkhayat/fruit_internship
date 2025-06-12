@@ -1,3 +1,4 @@
+import pathlib
 from omegaconf import DictConfig
 import hydra
 from utils.data import (
@@ -40,14 +41,16 @@ def main(cfg: DictConfig):
     else:
         name = get_run_name(cfg)
 
+    root_dir = pathlib.Path("data/",cfg.root_dir)
+
     generator = set_seed(cfg.seed)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     print(f"using : {device}")
     
-    train_samples, train_labels = get_samples(cfg.root_dir, "Training")
-    test_samples, test_labels = get_samples(cfg.root_dir, "Test")
+    train_samples, train_labels = get_samples(root_dir, "Training")
+    test_samples, test_labels = get_samples(root_dir, "Test")
 
     labels, id2lbl, lbl2id = get_labels_and_mappings(train_labels, test_labels)
 
