@@ -7,6 +7,19 @@ from omegaconf import DictConfig
 from torch.utils.data import Dataset
 from .general import seed_worker
 
+ACCEPTED_LABELS = [
+    "apple",
+    "cherry",
+    "fig",
+    "olive",
+    "pomegranate",
+    "orange",
+    "watermelon",
+    "strawberry",
+    "potato",
+    "tomato",
+    "pepper",
+]
 
 def get_samples(root_dir: str, folder: str, debug=False):
     print(f"extracting {folder} samples")
@@ -20,12 +33,12 @@ def get_samples(root_dir: str, folder: str, debug=False):
     for img_path in imgs_folder.glob("**/*.jpg"):
         if img_path.is_file() and img_path.suffix.lower() in image_extensions:
             label = img_path.parent.name
-            clean_label = re.sub(r"\s+\d+$", "", label)
-            labels.append(clean_label)
-            samples.append((str(img_path), clean_label))
+            clean_label = re.sub(r"\s+\d+$", "", label).split()[0].lower()
+            if clean_label in accepted_labels:
+                labels.append(clean_label)
+                samples.append((str(img_path), clean_label))
     labels = list(set(labels))
     return samples, labels
-
 
 def make_datasets(train_samples, test_samples, labels, id2lbl, lbl2id):
     print("making datasets")
@@ -35,8 +48,7 @@ def make_datasets(train_samples, test_samples, labels, id2lbl, lbl2id):
 
     return train_ds, test_ds
 
-
-def make_dataloaders(train_ds: Dataset, test_ds: Dataset, cfg: DictConfig):
+def make_dataloaders(train_ds: Dataset, test_ds: Dataset, cfg: DictConfig, generator):
     print("making dataloaders")
     worker_init = functools.partial(seed_worker, base_seed=cfg.seed)
 
@@ -44,24 +56,25 @@ def make_dataloaders(train_ds: Dataset, test_ds: Dataset, cfg: DictConfig):
         train_ds,
         batch_size=cfg.batch_size,
         shuffle=True,
-        num_workers=8,
+        num_workers=cfg.num_workers if 'num_workers' in cfg else max(1, os.cpu_count() - 1),
         persistent_workers=True,
         pin_memory=True,
         drop_last=True,
         worker_init_fn=worker_init,
+        generator=generator,
     )
 
     test_dl = DataLoader(
         test_ds,
         batch_size=cfg.batch_size,
-        num_workers=8,
+        num_workers=4,
         persistent_workers=True,
         pin_memory=True,
         worker_init_fn=worker_init,
+        generator=generator,
     )
 
     return train_dl, test_dl
-
 
 def get_labels_and_mappings(train_labels, test_labels):
     labels = sorted(list(set(train_labels + test_labels)))
