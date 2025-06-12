@@ -24,7 +24,6 @@ def initwandb(cfg):
 def get_run_name(cfg):
     name = (
         datetime.now().strftime("%Y%m%d-%H%M%S")
-        + f"_dataset={cfg.root_dir}"
         + f"_model={cfg.model.name}_lr={cfg.lr}"
     )
     return name
@@ -91,4 +90,4 @@ def log_model_params(run, model: nn.Module):
         param.numel() for param in model.parameters() if param.requires_grad
     )
 
-    run.log({"total parmas": total_params, "trainable params": trainable_params})
+    run.log({"total params": total_params, "trainable params": trainable_params})
