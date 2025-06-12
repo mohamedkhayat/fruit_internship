@@ -7,7 +7,7 @@ from omegaconf import DictConfig
 from torch.utils.data import Dataset
 from .general import seed_worker
 
-accepted_labels = [
+ACCEPTED_LABELS = [
     "apple",
     "cherry",
     "fig",
