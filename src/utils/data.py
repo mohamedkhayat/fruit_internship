@@ -6,6 +6,7 @@ from torch.utils.data import DataLoader
 from omegaconf import DictConfig
 from torch.utils.data import Dataset
 from .general import seed_worker
+import os
 
 ACCEPTED_LABELS = [
     "apple",
@@ -34,7 +35,7 @@ def get_samples(root_dir: str, folder: str, debug=False):
         if img_path.is_file() and img_path.suffix.lower() in image_extensions:
             label = img_path.parent.name
             clean_label = re.sub(r"\s+\d+$", "", label).split()[0].lower()
-            if clean_label in accepted_labels:
+            if clean_label in ACCEPTED_LABELS:
                 labels.append(clean_label)
                 samples.append((str(img_path), clean_label))
     labels = list(set(labels))
