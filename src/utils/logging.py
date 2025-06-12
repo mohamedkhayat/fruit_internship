@@ -1,5 +1,6 @@
+from collections import Counter
 from omegaconf import OmegaConf
-import torch
+import pandas as pd
 import torch.nn as nn
 from datetime import datetime
 import wandb
@@ -8,6 +9,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import time
 from .general import unnormalize
+import seaborn as sns
+
 
 def initwandb(cfg):
     name = get_run_name(cfg)
@@ -19,12 +22,14 @@ def initwandb(cfg):
     )
     return run
 
+
 def get_run_name(cfg):
     name = (
         datetime.now().strftime("%Y%m%d-%H%M%S")
         + f"_model={cfg.model.name}_lr={cfg.lr}"
     )
     return name
+
 
 def log_transforms(run, batch, n_images, classes, aug, mean, std):
     cols = 3
@@ -52,11 +57,12 @@ def log_transforms(run, batch, n_images, classes, aug, mean, std):
     run.log({"transforms visualization": wandb.Image(fig)})
     plt.close(fig)
 
-def log_confusion_matrix(run, y_true, y_pred, classes, normalize = True):
+
+def log_confusion_matrix(run, y_true, y_pred, classes, normalize=True):
     cm = confusion_matrix(y_true, y_pred)
     fmt_string = "d"
     if normalize:
-        row_sums = cm.sum(axis = 1, keepdims = True)
+        row_sums = cm.sum(axis=1, keepdims=True)
         cm = cm.astype(float) / row_sums
         fmt_string = ".2f"
 
@@ -78,10 +84,12 @@ def log_confusion_matrix(run, y_true, y_pred, classes, normalize = True):
     run.log({"confusion_matrix": wandb.Image(fig)})
     plt.close(fig)
 
+
 def log_training_time(run, start_time):
     end_time = time.time()
     elapsed = end_time - start_time
     run.log({"training time ": elapsed})
+
 
 def log_model_params(run, model: nn.Module):
     total_params = sum(param.numel() for param in model.parameters())
@@ -91,13 +99,29 @@ def log_model_params(run, model: nn.Module):
 
     run.log({"total params": total_params, "trainable params": trainable_params})
 
-def log_class_value_counts(run, train_samples):
 
-    all_train_labels = [label for _, label in train_samples]
+def log_class_value_counts(run, samples, stage="Train"):
+    all_labels = [label for _, label in samples]
 
-    fruit_counts = {}
-    for label in all_train_labels:
-        fruit_counts[label] = fruit_counts.get(label, 0) + 1
+    fruit_counts = Counter(all_labels)
+    df_counts = pd.DataFrame(
+        fruit_counts.items(), columns=["Class", "Count"]
+    ).sort_values(by="Count", ascending=False)
 
-    run.log({"len per class : ":fruit_counts})
-    print(fruit_counts)
+    fig, ax = plt.subplots(figsize=(12, 8))
+
+    sns.barplot(
+        x="Count",
+        y="Class",
+        data=df_counts,
+        ax=ax,
+        palette="viridis",
+        hue="Class",
+        legend=False,
+    )
+
+    ax.set_title(f"Class Distribution in {stage.capitalize()} Set")
+    plt.tight_layout()
+
+    run.log({f"{stage}_class_distribution": wandb.Image(fig)})
+    plt.close(fig)
