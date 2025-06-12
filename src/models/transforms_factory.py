@@ -21,10 +21,8 @@ def get_transforms(processor, model):
     elif model == "tiny_vit":
         interp_map = {"bilinear": cv2.INTER_LINEAR, "bicubic": cv2.INTER_CUBIC}
         interp = interp_map.get(processor["interpolation"], cv2.INTER_LINEAR)
-
-        resize_size = int(height / processor["crop_pct"])
-
         height, width = processor["input_size"][-2:]
+        resize_size = int(height / processor["crop_pct"])
         mean, std = processor["mean"], processor["std"]
         interp = processor["interpolation"]
         interp = interp_map[interp]
