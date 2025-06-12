@@ -11,7 +11,7 @@ from torchvision.models import (
 )
 import torch.nn as nn
 import timm
-from timm.data import resolve_data_config, create_transform
+from timm.data import resolve_data_config
 from .transforms_factory import get_transforms
 
 supported_models = ["vit_base", "tiny_vit", "efficientnet_v2_s", "efficientnet_b0"]
@@ -33,15 +33,18 @@ def get_model(cfg, device, n_classes, id2lbl, lbl2id, debug=False):
     elif cfg.model.name == "efficientnet_b0":
         return get_efficientnet_b0(device, n_classes)
 
+
 def get_tiny_vit(device, n_classes):
     checkpoint = "vit_tiny_patch16_224.augreg_in21k"
     print(f"getting : {checkpoint}")
+
     model = timm.create_model(checkpoint, pretrained=True, num_classes=n_classes)
     processor = resolve_data_config({}, model=model)
+
     transforms = get_transforms(processor, "tiny_vit")
-    # model = freeze_params(model, "tiny_vit")
     print("model loaded")
     return model.to(device), transforms, processor["mean"], processor["std"], processor
+
 
 def get_vit_base(device, n_classes, id2label, label2id):
     checkpoint = "google/vit-base-patch16-224"
@@ -55,7 +58,6 @@ def get_vit_base(device, n_classes, id2label, label2id):
         config=config,
         ignore_mismatched_sizes=True,
     )
-    # model = freeze_params(model, "vit_base")
 
     processor = AutoImageProcessor.from_pretrained(checkpoint)
 
@@ -68,6 +70,7 @@ def get_vit_base(device, n_classes, id2label, label2id):
         processor.image_std,
         processor,
     )
+
 
 def get_efficientnet_v2_s(device, n_classes):
     print(f"getting : efficientnet_v2_s")
@@ -88,6 +91,7 @@ def get_efficientnet_v2_s(device, n_classes):
         weights.transforms(),
     )
 
+
 def get_efficientnet_b0(device, n_classes):
     print(f"getting : efficientnet_b0")
 
@@ -107,44 +111,17 @@ def get_efficientnet_b0(device, n_classes):
         weights.transforms(),
     )
 
+
 def freeze_params(model, name):
-    if name == "tiny_vit":
-        print("frozen backbone partially")
-        return freeze_tiny_vit(model)
-    elif name == "efficientnet_v2_s":
+    if name == "efficientnet_v2_s":
         print("frozen backbone partially")
         return freeze_efficientnet_v2_s(model)
     elif name == "efficientnet_b0":
         print("frozen backbone partially")
         return freeze_efficientnet_b0(model)
-    elif name == "vit_base":
-        return freeze_vit_base(model)
-
     else:
         print("error freezing weigths")
 
-def freeze_tiny_vit(model):
-    """
-    for name, param in model.named_parameters():
-        param.requires_grad = False
-
-    for param in model.head.parameters():
-        param.requires_grad = True
-
-    for param in model.blocks[-1].parameters():
-        param.requires_grad = True
-    """
-    grad = False
-    for param in model.parameters():
-        param.requires_grad = grad
-
-    for name, param in model.named_parameters():
-        if "blocks.11" in name:
-            grad = True
-
-        param.requires_grad_(grad)
-
-    return model
 
 def freeze_efficientnet_v2_s(model):
     grad = False
@@ -159,6 +136,7 @@ def freeze_efficientnet_v2_s(model):
 
     return model
 
+
 def freeze_efficientnet_b0(model):
     grad = False
     for param in model.parameters():
@@ -166,19 +144,6 @@ def freeze_efficientnet_b0(model):
 
     for name, param in model.named_parameters():
         if "features.7" in name:
-            grad = True
-
-        param.requires_grad_(grad)
-
-    return model
-
-def freeze_vit_base(model):
-    grad = False
-    for param in model.parameters():
-        param.requires_grad = grad
-
-    for name, param in model.named_parameters():
-        if "layer.11" in name:
             grad = True
 
         param.requires_grad_(grad)
