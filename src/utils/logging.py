@@ -9,7 +9,6 @@ import seaborn as sns
 import time
 from .general import unnormalize
 
-
 def initwandb(cfg):
     name = get_run_name(cfg)
     run = wandb.init(
@@ -20,14 +19,12 @@ def initwandb(cfg):
     )
     return run
 
-
 def get_run_name(cfg):
     name = (
         datetime.now().strftime("%Y%m%d-%H%M%S")
         + f"_model={cfg.model.name}_lr={cfg.lr}"
     )
     return name
-
 
 def log_transforms(run, batch, n_images, classes, aug, mean, std):
     cols = 3
@@ -55,15 +52,19 @@ def log_transforms(run, batch, n_images, classes, aug, mean, std):
     run.log({"transforms visualization": wandb.Image(fig)})
     plt.close(fig)
 
-
-def log_confusion_matrix(run, y_true, y_pred, classes):
+def log_confusion_matrix(run, y_true, y_pred, classes, normalize = True):
     cm = confusion_matrix(y_true, y_pred)
+    fmt_string = "d"
+    if normalize:
+        row_sums = cm.sum(axis = 1, keepdims = True)
+        cm = cm.astype(float) / row_sums
+        fmt_string = ".2f"
 
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(10, 10))
     sns.heatmap(
         cm,
         annot=True,
-        fmt="d",
+        fmt=fmt_string,
         cmap="Blues",
         xticklabels=classes,
         yticklabels=classes,
@@ -77,12 +78,10 @@ def log_confusion_matrix(run, y_true, y_pred, classes):
     run.log({"confusion_matrix": wandb.Image(fig)})
     plt.close(fig)
 
-
 def log_training_time(run, start_time):
     end_time = time.time()
     elapsed = end_time - start_time
     run.log({"training time ": elapsed})
-
 
 def log_model_params(run, model: nn.Module):
     total_params = sum(param.numel() for param in model.parameters())
@@ -91,3 +90,14 @@ def log_model_params(run, model: nn.Module):
     )
 
     run.log({"total params": total_params, "trainable params": trainable_params})
+
+def log_class_value_counts(run, train_samples):
+
+    all_train_labels = [label for _, label in train_samples]
+
+    fruit_counts = {}
+    for label in all_train_labels:
+        fruit_counts[label] = fruit_counts.get(label, 0) + 1
+
+    run.log({"len per class : ":fruit_counts})
+    print(fruit_counts)
