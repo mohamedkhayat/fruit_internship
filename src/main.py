@@ -24,6 +24,7 @@ from utils.logging import (
     log_model_params,
     log_training_time,
     log_transforms,
+    log_class_value_counts
 )
 from utils.general import set_seed
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts, SequentialLR, LinearLR
@@ -44,12 +45,14 @@ def main(cfg: DictConfig):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     print(f"using : {device}")
-
+    
     train_samples, train_labels = get_samples(cfg.root_dir, "Training")
     test_samples, test_labels = get_samples(cfg.root_dir, "Test")
 
     labels, id2lbl, lbl2id = get_labels_and_mappings(train_labels, test_labels)
 
+    log_class_value_counts(run, train_samples)
+    
     train_ds, test_ds = make_datasets(
         train_samples, test_samples, labels, id2lbl, lbl2id
     )
@@ -130,7 +133,7 @@ def main(cfg: DictConfig):
             f"Epoch {epoch + 1} Train --- Loss: {train_loss:.4f}, F1: {train_f1:.4f}"
         )
 
-        test_loss, test_f1 = eval(
+        test_loss, test_f1, y_true, y_pred = eval(
             model, device, test_dl, criterion, n_classes, epoch + 1
         )
         tqdm.write(
@@ -162,7 +165,7 @@ def main(cfg: DictConfig):
 
     if cfg.log:
         run.log({"best val f1": best_val_f1})
-
+        log_confusion_matrix(run,y_true,y_pred,labels)
         model = early_stopping.get_best_model(model)
 
         run.finish()
