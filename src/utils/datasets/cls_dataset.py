@@ -6,7 +6,7 @@ from PIL import Image
 import albumentations
 
 
-class DS(Dataset):
+class CLS_DS(Dataset):
     def __init__(
         self,
         samples: List[Tuple[str, str]],

@@ -63,6 +63,7 @@ class EarlyStopping:
 
     def get_best_model(self, model):
         self.cleanup_checkpoints()
+        print("loading best model")
         model.eval()
 
         if len(self.saved_checkpoints) > 0:

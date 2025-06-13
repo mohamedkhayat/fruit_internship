@@ -1,7 +1,10 @@
 import functools
 import pathlib
 import re
-from .dataset import DS
+
+import torch
+from .datasets.cls_dataset import CLS_DS
+from .datasets.det_dataset import DET_DS
 from torch.utils.data import DataLoader
 from omegaconf import DictConfig
 from torch.utils.data import Dataset
@@ -22,6 +25,7 @@ ACCEPTED_LABELS = [
     "pepper",
 ]
 
+
 def get_samples(root_dir: str, folder: str, debug=False):
     print(f"extracting {folder} samples")
     samples = []
@@ -41,15 +45,42 @@ def get_samples(root_dir: str, folder: str, debug=False):
     labels = list(set(labels))
     return samples, labels
 
-def make_datasets(train_samples, test_samples, labels, id2lbl, lbl2id):
+
+def make_datasets(cfg):
     print("making datasets")
 
-    train_ds = DS(train_samples, labels, id2lbl, lbl2id)
-    test_ds = DS(test_samples, labels, id2lbl, lbl2id)
+    train_ds = DET_DS(
+        cfg.root_dir,
+        "train",
+        "images",
+        "labels",
+        "data.yaml",
+        None,
+        cfg.model.input_size,
+    )
+    test_ds = DET_DS(
+        cfg.root_dir,
+        "test",
+        "images",
+        "labels",
+        "data.yaml",
+        None,
+        cfg.model.input_size,
+    )
+    val_ds = DET_DS(
+        cfg.root_dir,
+        "val",
+        "images",
+        "labels",
+        "data.yaml",
+        None,
+        cfg.model.input_size,
+    )
 
-    return train_ds, test_ds
+    return train_ds, test_ds, val_ds
 
-def make_dataloaders(train_ds: Dataset, test_ds: Dataset, cfg: DictConfig, generator):
+
+def make_dataloaders(train_ds: Dataset, test_ds: Dataset, val_ds: Dataset, cfg: DictConfig, generator):
     print("making dataloaders")
     worker_init = functools.partial(seed_worker, base_seed=cfg.seed)
 
@@ -57,12 +88,15 @@ def make_dataloaders(train_ds: Dataset, test_ds: Dataset, cfg: DictConfig, gener
         train_ds,
         batch_size=cfg.batch_size,
         shuffle=True,
-        num_workers=cfg.num_workers if 'num_workers' in cfg else max(1, os.cpu_count() - 1),
+        num_workers=cfg.num_workers
+        if "num_workers" in cfg
+        else max(1, os.cpu_count() - 1),
         persistent_workers=True,
         pin_memory=True,
         drop_last=True,
         worker_init_fn=worker_init,
         generator=generator,
+        collate_fn=collate_fn,
     )
 
     test_dl = DataLoader(
@@ -73,9 +107,22 @@ def make_dataloaders(train_ds: Dataset, test_ds: Dataset, cfg: DictConfig, gener
         pin_memory=True,
         worker_init_fn=worker_init,
         generator=generator,
+        collate_fn=collate_fn,
+    )
+    
+    val_dl = DataLoader(
+        val_ds,
+        batch_size=cfg.batch_size,
+        num_workers=4,
+        persistent_workers=True,
+        pin_memory=True,
+        worker_init_fn=worker_init,
+        generator=generator,
+        collate_fn=collate_fn,
     )
 
-    return train_dl, test_dl
+    return train_dl, test_dl, val_dl
+
 
 def get_labels_and_mappings(train_labels, test_labels):
     labels = sorted(list(set(train_labels + test_labels)))
@@ -84,3 +131,8 @@ def get_labels_and_mappings(train_labels, test_labels):
     lbl2id = {v: k for k, v in id2lbl.items()}
 
     return labels, id2lbl, lbl2id
+
+
+def collate_fn(batch):
+    imgs, targets = list(zip(*batch))
+    return list(imgs), list(targets)

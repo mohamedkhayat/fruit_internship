@@ -1,63 +1,100 @@
-from torchmetrics import F1Score
 import torch
 import torch.nn as nn
 from torch.amp import GradScaler
 from tqdm import tqdm
-from .general import is_hf_model
+from torchmetrics.detection.mean_ap import MeanAveragePrecision
 
 
-def make_forward_step(model: nn.Module):
-    if is_hf_model(model):
-        return lambda x: model(x).logits
-    else:
-        return lambda x: model(x)
+def get_optimizer(model, head_lr=1e-4, backbone_lr=1e-5, weight_decay=1e-4, **kwargs):
+    param_dicts = [
+        {
+            "params": [
+                p
+                for n, p in model.named_parameters()
+                if "backbone" not in n and p.requires_grad
+            ]
+        },
+        {
+            "params": [
+                p
+                for n, p in model.named_parameters()
+                if "backbone" in n and p.requires_grad
+            ],
+            "lr": backbone_lr,
+        },
+    ]
+
+    optimizer = torch.optim.AdamW(param_dicts, lr=head_lr, weight_decay=weight_decay)
+    return optimizer
+
+
+def to_coco_dict(idx: int, boxes, labels) -> dict:
+    coco_ann = []
+    for box, cls in zip(boxes, labels):
+        x1, y1, x2, y2 = box.tolist()
+        coco_box = [x1, y1, x2 - x1, y2 - y1]
+        area = (x2 - x1) * (y2 - y1)
+        coco_ann.append(
+            {
+                "category_id": int(cls),
+                "bbox": coco_box,
+                "area": area,
+                "iscrowd": 0,
+            }
+        )
+    return {"image_id": idx, "annotations": coco_ann}
+
+
+def move_labels_to_device(batch, device):
+    for lab in batch["labels"]:
+        for k, v in lab.items():
+            lab[k] = v.to(device)
+    return batch
 
 
 def train(
     model: nn.Module,
     device: torch.device,
     train_dl,
-    criterion: nn.Module,
     scaler: GradScaler,
-    num_classes,
     optimizer,
     current_epoch,
+    processor,
 ):
-    forward_step = make_forward_step(model)
     model.train()
     loss = 0.0
-
-    f1 = F1Score(
-        task="multiclass",
-        num_classes=num_classes,
-        average="weighted",
-        compute_on_cpu=True,
-    )
 
     device_str = str(device).split(":")[0]
     progress_bar = tqdm(
         train_dl,
         desc=f"Epoch {current_epoch} Training",
-        leave=True,
+        leave=False,
         bar_format="{l_bar}{bar:30}{r_bar}{bar:-30b}",
     )
 
     for batch_idx, (x, y) in enumerate(progress_bar):
-        x, y = x.to(device), y.to(device)
-
+        coco_targets = [
+            to_coco_dict(i, t["boxes"], t["labels"]) for i, t in enumerate(y)
+        ]
+        batch = processor(
+            images=x,
+            annotations=coco_targets,
+            return_tensors="pt",
+        ).to(device)
+        batch = move_labels_to_device(batch, device)
         optimizer.zero_grad()
 
         with torch.autocast(device_type=device_str, dtype=torch.float16):
-            # out = model(x).logits
-            out = forward_step(x)
-            batch_loss = criterion(out, y)
+            out = model(**batch)
+            batch_loss = out.loss
 
         scaler.scale(batch_loss).backward()
+        scaler.unscale_(optimizer)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         scaler.step(optimizer)
         scaler.update()
 
         loss += batch_loss.item()
-        f1.update(out.cpu(), y.cpu())
 
         current_avg_loss = loss / (batch_idx + 1)
         progress_bar.set_postfix(
@@ -67,93 +104,75 @@ def train(
             }
         )
 
-    f1_score = f1.compute()
-    f1.reset()
     loss /= len(train_dl)
-    return loss, f1_score.item()
+    return loss
 
 
 @torch.no_grad()
-def eval(model: nn.Module, device, test_dl, criterion, num_classes, current_epoch):
-    forward_step = make_forward_step(model)
+def eval(model: nn.Module, device, test_dl, current_epoch, processor):
     model.eval()
-
-    loss = 0.0
-    y_true = []
-    y_pred = []
-
-    f1 = F1Score(
-        task="multiclass",
-        num_classes=num_classes,
-        average="weighted",
-        compute_on_cpu=True,
+    metric = MeanAveragePrecision(
+        box_format="xyxy",
+        max_detection_thresholds=[1, 10, 100],
+        class_metrics=True,
     )
+    metric.warn_on_many_detections = False
+    loss = 0.0
 
     device_str = str(device).split(":")[0]
 
     progress_bar = tqdm(
         test_dl,
         desc=f"Epoch {current_epoch} Evaluating",
-        leave=True,
+        leave=False,
         bar_format="{l_bar}{bar:30}{r_bar}{bar:-30b}",
     )
 
     for batch_idx, (x, y) in enumerate(progress_bar):
-        x, y = x.to(device), y.to(device)
+        coco_targets = [
+            to_coco_dict(i, t["boxes"], t["labels"]) for i, t in enumerate(y)
+        ]
+        batch = processor(
+            images=x,
+            annotations=coco_targets,
+            return_tensors="pt",
+        ).to(device)
+
+        batch = move_labels_to_device(batch, device)
 
         with torch.autocast(device_type=device_str, dtype=torch.float16):
-            # out = model(x).logits
-            out = forward_step(x)
-            batch_loss = criterion(out, y)
+            out = model(**batch)
+            batch_loss = out.loss
 
         loss += batch_loss.item()
-        f1.update(out.cpu(), y.cpu())
 
         current_avg_loss = loss / (batch_idx + 1)
+
         progress_bar.set_postfix(
             {
                 "Loss": f"{current_avg_loss:.4f}",
                 "Batch": f"{batch_idx + 1}/{len(test_dl)}",
             }
         )
-        y_true.extend(y.cpu().numpy())
-        y_pred.extend(torch.argmax(out, dim = 1).cpu().numpy())
+        sizes = torch.stack([lab["orig_size"] for lab in batch["labels"]])
+        preds = processor.post_process_object_detection(
+            out, threshold=0.0, target_sizes=sizes
+        )
 
-    f1_score = f1.compute()
-    f1.reset()
+        metric.update(nested_to_cpu(preds), y)
+
+    stats = metric.compute()
+    metric.reset()
+
     loss /= len(test_dl)
-    return loss, f1_score.item(), y_true, y_pred
+    return loss, stats["map"].item(), stats["map_50"].item()
 
 
-def get_optimizer(
-    model, head_lr=1e-5, backbone_lr=1e-3, weight_decay=0.001, freeze=False
-):
-    if freeze:
-        backbone_params = []
-        head_params = []
-
-        for name, param in model.named_parameters():
-            if param.requires_grad:
-                if (
-                    name.startswith("classifier")
-                    or name == "fc.weight"
-                    or name == "fc.bias"
-                ):
-                    head_params.append(param)
-                else:
-                    backbone_params.append(param)
-
-        optimizer = torch.optim.AdamW(
-            [
-                {"params": backbone_params, "lr": backbone_lr},
-                {"params": head_params, "lr": head_lr},
-            ]
-        )
-    else:
-        optimizer = torch.optim.AdamW(
-            model.parameters(),
-            lr=head_lr,
-            weight_decay=weight_decay,
-        )
-
-    return optimizer
+def nested_to_cpu(obj):
+    if torch.is_tensor(obj):
+        return obj.cpu()
+    if isinstance(obj, dict):
+        return {k: nested_to_cpu(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [nested_to_cpu(v) for v in obj]
+    return obj

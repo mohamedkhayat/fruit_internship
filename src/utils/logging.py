@@ -10,6 +10,9 @@ import seaborn as sns
 import time
 from .general import unnormalize
 import seaborn as sns
+import torch
+from torchvision.utils import draw_bounding_boxes
+from torchvision.transforms.functional import to_tensor, to_pil_image
 
 
 def initwandb(cfg):
@@ -20,6 +23,11 @@ def initwandb(cfg):
         name=name,
         config=OmegaConf.to_container(cfg, resolve=True),
     )
+    run.define_metric("epoch")
+    run.define_metric("train/*", step_metric="epoch")
+    run.define_metric("test/*", step_metric="epoch")
+    run.define_metric("val/*", step_metric="epoch")
+
     return run
 
 
@@ -31,30 +39,89 @@ def get_run_name(cfg):
     return name
 
 
-def log_transforms(run, batch, n_images, classes, aug, mean, std):
-    cols = 3
-    rows = (n_images + cols - 1) // cols
+def log_images(run, batch, id2lbl, grid_size=(3, 3)):
+    images, targets = batch
 
-    fig, axes = plt.subplots(rows, cols, figsize=(rows * 3, cols * 3))
+    n_rows, n_cols = grid_size
+    max_plots = n_rows * n_cols
+    n = min(len(images), max_plots)
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(10, 6))
     axes = axes.flatten()
 
-    images, labels = batch
-    fig.suptitle(f"{aug} transforms", fontsize=16)
-
-    for ax, img_tensor, label in zip(axes, images[:n_images], labels[:n_images]):
-        # 1 x 3 x H x W
-        # img = img.squeeze(0)
-        img = img_tensor.detach().clone()
-        img = unnormalize(img, mean, std).squeeze(0).cpu().numpy()
-        img = img.transpose(1, 2, 0)
-        img = (img * 255).clip(0, 255).astype("uint8")
-
-        ax.imshow(img)
+    for ax in axes[n:]:
         ax.axis("off")
-        ax.set_title(f"{classes[label]}")
+
+    for i in range(n):
+        img = images[i]
+        tgt = targets[i]
+
+        img_uint8 = (to_tensor(img) * 255).to(torch.uint8)
+
+        labels = [str(id2lbl[int(lbl)]) for lbl in tgt["labels"].cpu()]
+
+        annotated = draw_bounding_boxes(
+            img_uint8,
+            boxes=tgt["boxes"].to(torch.int64),
+            labels=labels,
+            colors="red",
+            width=2,
+            font="LiberationMono-Regular.ttf",
+            font_size=35,
+        )
+
+        axes[i].imshow(to_pil_image(annotated))
+        axes[i].axis("off")
 
     plt.tight_layout()
-    run.log({"transforms visualization": wandb.Image(fig)})
+
+    if run:
+        run.log({f"Pre transform examples": wandb.Image(fig)})
+    else:
+        plt.show()
+
+    plt.close(fig)
+
+
+def log_transforms(run, batch, grid_size, id2lbl):
+    n_rows, n_cols = grid_size
+    max_plots = n_rows * n_cols
+    images, targets = batch
+    n = min(len(images), max_plots)
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(10, 6))
+    axes = axes.flatten()
+
+    for ax in axes[n:]:
+        ax.axis("off")
+
+    for i in range(n):
+        img = images[i]
+
+        tgt = targets[i]
+
+        img_uint8 = (to_tensor(img) * 255).to(torch.uint8)
+
+        labels = [str(id2lbl[int(lbl)]) for lbl in tgt["labels"].cpu()]
+
+        annotated = draw_bounding_boxes(
+            img_uint8,
+            boxes=tgt["boxes"].to(torch.int64),
+            labels=labels,
+            colors="red",
+            width=2,
+            font="LiberationMono-Regular.ttf",
+            font_size=35,
+        )
+
+        axes[i].imshow(to_pil_image(annotated))
+        axes[i].axis("off")
+
+    plt.tight_layout()
+
+    if run:
+        run.log({f"Post transform examples": wandb.Image(fig)})
+    else:
+        plt.show()
+
     plt.close(fig)
 
 
