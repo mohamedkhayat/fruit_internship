@@ -127,10 +127,11 @@ def main(cfg: DictConfig):
         )
 
         scheduler.step()
-
+        """
         epoch_pbar.set_postfix_str(
             f"Test Loss: {test_loss:.4f}, Test mAP: {test_map:.4f} , Test mAP@50 : {test_map50:.4f}"
         )
+        """
 
         epoch_pbar.update(1)
 
