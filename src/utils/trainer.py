@@ -114,7 +114,7 @@ def eval(model: nn.Module, device, test_dl, current_epoch, processor):
     model.eval()
     metric = MeanAveragePrecision(
         box_format="xyxy",
-        average="micro",
+        average="macro",
         max_detection_thresholds=[1, 10, 100],
         iou_thresholds=None,
         class_metrics=True,
