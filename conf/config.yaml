@@ -1,5 +1,5 @@
 defaults:
-  - model: detrv2
+  - model: detrv2_18
   - _self_
   
 batch_size: 32

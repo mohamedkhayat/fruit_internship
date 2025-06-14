@@ -27,7 +27,6 @@ from utils.logging import (
 )
 from utils.general import set_seed
 from torch.optim.lr_scheduler import CosineAnnealingLR, SequentialLR, LinearLR
-import runpod
 cv2.setNumThreads(0)
 
 @hydra.main(version_base=None, config_path="../conf", config_name="config")

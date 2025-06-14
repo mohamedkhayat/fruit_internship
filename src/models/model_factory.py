@@ -8,21 +8,23 @@ import timm
 from timm.data import resolve_data_config
 from .transforms_factory import get_transforms
 
-supported_models = [
-    "detrv2",
-]
+supported_models = {
+    "detrv2_18" : "PekingU/rtdetr_v2_r18vd",
+    "detrv2_34" : "PekingU/rtdetr_v2_r34vd",
+    "detrv2_50" : "PekingU/rtdetr_v2_r50vd",
+    "detrv2_101" : "PekingU/rtdetr_v2_r101vd"
+}
 
 
 def get_model(cfg, device, n_classes, id2lbl, lbl2id, debug=False):
-    if debug == False and cfg.model.name not in supported_models:
-        raise ValueError(f"model not supported, use one of : {supported_models}")
-
-    if cfg.model.name == "detrv2":
+    if cfg.model.name in supported_models.keys():
         return get_RTDETRv2(device, n_classes, id2lbl, lbl2id, cfg)
+    else:
+        raise ValueError(f"model not supported, use one of : {supported_models}")
 
 
 def get_RTDETRv2(device, n_classes, id2label, label2id, cfg):
-    checkpoint = "PekingU/rtdetr_v2_r18vd"
+    checkpoint = supported_models[cfg.model.name]
     print(f"getting : {checkpoint}")
 
     config = AutoConfig.from_pretrained(

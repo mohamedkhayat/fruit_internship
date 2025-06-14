@@ -13,3 +13,4 @@ tqdm==4.66.5
 transformers==4.52.4
 wandb
 torchmetrics[detection]
+kaggle
