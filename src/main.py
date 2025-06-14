@@ -27,19 +27,36 @@ from utils.logging import (
 )
 from utils.general import set_seed
 from torch.optim.lr_scheduler import CosineAnnealingLR, SequentialLR, LinearLR
-
+import runpod
 cv2.setNumThreads(0)
-
 
 @hydra.main(version_base=None, config_path="../conf", config_name="config")
 def main(cfg: DictConfig):
+
+    if cfg.download_data:
+        import os
+        api_key = os.getenv('KAGGLE_KEY')
+        if api_key is None:
+            raise RuntimeError("Environment variable 'kaggle_key' is not set!")
+
+        os.environ['KAGGLE_USERNAME'] = 'mohamedkhayat'
+        os.environ['KAGGLE_KEY'] = api_key
+        from kaggle import api
+
+        api.authenticate()
+        api.dataset_download_files(
+            'lakshaytyagi01/fruit-detection',
+            path='./data',
+            unzip=True
+        )
+
     if cfg.log:
         run = initwandb(cfg)
         name = run.name
     else:
         run = None
         name = get_run_name(cfg)
-
+    
     generator = set_seed(cfg.seed)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

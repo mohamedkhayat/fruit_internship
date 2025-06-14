@@ -65,8 +65,6 @@ def log_images(run, batch, id2lbl, grid_size=(3, 3)):
             labels=labels,
             colors="red",
             width=2,
-            font="LiberationMono-Regular.ttf",
-            font_size=35,
         )
 
         axes[i].imshow(to_pil_image(annotated))
@@ -108,8 +106,6 @@ def log_transforms(run, batch, grid_size, id2lbl):
             labels=labels,
             colors="red",
             width=2,
-            font="LiberationMono-Regular.ttf",
-            font_size=35,
         )
 
         axes[i].imshow(to_pil_image(annotated))
