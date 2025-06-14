@@ -1,11 +1,9 @@
-import pathlib
 from omegaconf import DictConfig
 import hydra
 from utils.data import (
-    get_samples,
     make_datasets,
     make_dataloaders,
-    get_labels_and_mappings,
+    download_dataset
 )
 from models.model_factory import get_model
 import torch
@@ -19,10 +17,7 @@ from tqdm import tqdm
 from utils.logging import (
     initwandb,
     get_run_name,
-    log_confusion_matrix,
-    log_model_params,
     log_transforms,
-    log_class_value_counts,
     log_images,
 )
 from utils.general import set_seed
@@ -33,21 +28,7 @@ cv2.setNumThreads(0)
 def main(cfg: DictConfig):
 
     if cfg.download_data:
-        import os
-        api_key = os.getenv('KAGGLE_KEY')
-        if api_key is None:
-            raise RuntimeError("Environment variable 'kaggle_key' is not set!")
-
-        os.environ['KAGGLE_USERNAME'] = 'mohamedkhayat'
-        os.environ['KAGGLE_KEY'] = api_key
-        from kaggle import api
-
-        api.authenticate()
-        api.dataset_download_files(
-            'lakshaytyagi01/fruit-detection',
-            path='./data',
-            unzip=True
-        )
+        download_dataset()
 
     if cfg.log:
         run = initwandb(cfg)

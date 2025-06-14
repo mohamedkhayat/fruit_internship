@@ -24,7 +24,23 @@ ACCEPTED_LABELS = [
     "tomato",
     "pepper",
 ]
+def download_dataset():
+    username = os.getenv('KAGGLE_USERNAME')
+    api_key = os.getenv('KAGGLE_KEY')
+    if api_key or username is None:
+        raise RuntimeError("Environment variable 'kaggle_key' and or 'username' is not set!")
 
+    os.environ['KAGGLE_USERNAME'] = 'username'
+    os.environ['KAGGLE_KEY'] = api_key
+
+    from kaggle import api
+
+    api.authenticate()
+    api.dataset_download_files(
+        'lakshaytyagi01/fruit-detection',
+        path='./data',
+        unzip=True
+    )
 
 def get_samples(root_dir: str, folder: str, debug=False):
     print(f"extracting {folder} samples")
