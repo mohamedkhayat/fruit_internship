@@ -126,7 +126,6 @@ def main(cfg: DictConfig):
                     "test/loss": test_loss,
                     "Learning rate": float(f"{scheduler.get_last_lr()[0]:.6f}"),
                 },
-                step="epoch",
             )
         if early_stopping(test_map, model):
             tqdm.write(f"Early stopping triggered at epoch {epoch + 1}.")
@@ -135,7 +134,7 @@ def main(cfg: DictConfig):
     print("Training finished.")
 
     if cfg.log:
-        run.log({"best test map": best_test_map})
+        run.log({"test/best test map": best_test_map})
         # log_confusion_matrix(run, y_true, y_pred, labels)
         model = early_stopping.get_best_model(model)
 

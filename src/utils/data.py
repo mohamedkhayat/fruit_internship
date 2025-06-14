@@ -69,7 +69,7 @@ def make_datasets(cfg):
     )
     val_ds = DET_DS(
         cfg.root_dir,
-        "val",
+        "valid",
         "images",
         "labels",
         "data.yaml",
@@ -80,7 +80,9 @@ def make_datasets(cfg):
     return train_ds, test_ds, val_ds
 
 
-def make_dataloaders(train_ds: Dataset, test_ds: Dataset, val_ds: Dataset, cfg: DictConfig, generator):
+def make_dataloaders(
+    train_ds: Dataset, test_ds: Dataset, val_ds: Dataset, cfg: DictConfig, generator
+):
     print("making dataloaders")
     worker_init = functools.partial(seed_worker, base_seed=cfg.seed)
 
@@ -109,7 +111,7 @@ def make_dataloaders(train_ds: Dataset, test_ds: Dataset, val_ds: Dataset, cfg: 
         generator=generator,
         collate_fn=collate_fn,
     )
-    
+
     val_dl = DataLoader(
         val_ds,
         batch_size=cfg.batch_size,
