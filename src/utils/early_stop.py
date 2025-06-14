@@ -1,5 +1,6 @@
 import torch
 import pathlib
+from tqdm import tqdm
 
 
 class EarlyStopping:
@@ -20,7 +21,7 @@ class EarlyStopping:
     def __call__(self, val_metric, model):
         if self.best_metric is None:
             self.best_metric = val_metric
-            print("saved model weights")
+            tqdm.write("saved model weights")
             self.save_model(model, val_metric)
 
         elif val_metric <= self.best_metric + self.delta:
@@ -29,10 +30,11 @@ class EarlyStopping:
             self.best_metric = val_metric
             self.save_model(model, val_metric)
             self.counter = 0
-            print("saved model weights")
+            tqdm.write(f"saved model weights")
 
         if self.counter >= self.patience:
-            print("early stop triggered")
+            print("")
+            tqdm.write(f"early stop triggered")
             self.earlystop = True
 
         return self.earlystop
@@ -45,25 +47,25 @@ class EarlyStopping:
 
     def cleanup_checkpoints(self):
         if not self.saved_checkpoints:
-            print("No checkpoints to clean up.")
+            tqdm.write(f"No checkpoints to clean up.")
             return
 
-        print("cleaning up old checkpoints...")
+        tqdm.write(f"cleaning up old checkpoints...")
         best_val, best_path = max(self.saved_checkpoints, key=lambda x: x[0])
 
         for val, path in self.saved_checkpoints:
             if path != best_path and path.exists():
                 try:
                     path.unlink()
-                    print(f"deleted {path.name}")
+                    tqdm.write(f"deleted {path.name}")
                 except Exception as e:
-                    print(f"could not delete {path.name}: {e}")
+                    tqdm.write(f"could not delete {path.name}: {e}")
 
-        print(f"kept best model: {best_path.name}")
+        tqdm.write(f"kept best model: {best_path.name}")
 
     def get_best_model(self, model):
         self.cleanup_checkpoints()
-        print("loading best model")
+        tqdm.write(f"loading best model")
         model.eval()
 
         if len(self.saved_checkpoints) > 0:

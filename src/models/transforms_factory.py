@@ -5,14 +5,21 @@ import cv2
 os.environ["NO_ALBUMENTATIONS_UPDATE"] = "1"
 
 
-def get_transforms():
+def get_transforms(input_size):
     transforms = {
         "train": A.Compose(
             [
-                A.Perspective(p=0.1),
+                A.RandomResizedCrop(
+                    size=(input_size,input_size),
+                    scale=(0.8, 1.0),
+                    ratio=(3 / 4, 4 / 3),
+                    p=1.0,
+                ),
                 A.HorizontalFlip(p=0.5),
+                A.RGBShift(15, 15, 15, p=0.5),
                 A.RandomBrightnessContrast(p=0.5),
-                A.HueSaturationValue(p=0.1),
+                A.HueSaturationValue(10, 25, 10, p=0.3),
+                A.CLAHE(clip_limit=2.0, p=0.2),
             ],
             bbox_params=A.BboxParams(
                 format="pascal_voc",
@@ -24,7 +31,16 @@ def get_transforms():
             ),
         ),
         "test": A.Compose(
-            [A.NoOp()],
+            [
+                A.LongestMaxSize(max_size=input_size, p=1.0),
+                A.PadIfNeeded(
+                    min_height=input_size,
+                    min_width=input_size,
+                    border_mode=cv2.BORDER_CONSTANT,
+                    fill=0,
+                    p=1.0,
+                ),
+            ],
             bbox_params=A.BboxParams(
                 format="pascal_voc",
                 label_fields=["labels"],

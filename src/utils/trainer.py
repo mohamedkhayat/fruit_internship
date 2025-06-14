@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.amp import GradScaler
+import torchvision
 from tqdm import tqdm
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
 
@@ -113,7 +114,9 @@ def eval(model: nn.Module, device, test_dl, current_epoch, processor):
     model.eval()
     metric = MeanAveragePrecision(
         box_format="xyxy",
+        average="micro",
         max_detection_thresholds=[1, 10, 100],
+        iou_thresholds=None,
         class_metrics=True,
     )
     metric.warn_on_many_detections = False
@@ -154,12 +157,29 @@ def eval(model: nn.Module, device, test_dl, current_epoch, processor):
                 "Batch": f"{batch_idx + 1}/{len(test_dl)}",
             }
         )
-        sizes = torch.stack([lab["orig_size"] for lab in batch["labels"]])
+        sizes = torch.tensor([[img.shape[0], img.shape[1]] for img in x]).to(device)
         preds = processor.post_process_object_detection(
             out, threshold=0.0, target_sizes=sizes
         )
+        for p in preds:
+            topk = p["scores"].argsort(descending=True)[:300]
+            for k in ("boxes", "scores", "labels"):
+                p[k] = p[k][topk]
 
-        metric.update(nested_to_cpu(preds), y)
+            # conf filter
+            keep = p["scores"] > 0.001
+            for k in ("boxes", "scores", "labels"):
+                p[k] = p[k][keep]
+
+            # per-class NMS
+            keep = torchvision.ops.batched_nms(
+                p["boxes"], p["scores"], p["labels"], 0.7
+            )
+            for k in ("boxes", "scores", "labels"):
+                p[k] = p[k][keep]
+
+        preds = nested_to_cpu(preds)
+        metric.update(preds, y)
 
     stats = metric.compute()
     metric.reset()

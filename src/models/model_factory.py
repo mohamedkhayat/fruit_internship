@@ -18,10 +18,10 @@ def get_model(cfg, device, n_classes, id2lbl, lbl2id, debug=False):
         raise ValueError(f"model not supported, use one of : {supported_models}")
 
     if cfg.model.name == "detrv2":
-        return get_RTDETRv2(device, n_classes, id2lbl, lbl2id)
+        return get_RTDETRv2(device, n_classes, id2lbl, lbl2id, cfg)
 
 
-def get_RTDETRv2(device, n_classes, id2label, label2id):
+def get_RTDETRv2(device, n_classes, id2label, label2id, cfg):
     checkpoint = "PekingU/rtdetr_v2_r18vd"
     print(f"getting : {checkpoint}")
 
@@ -41,7 +41,7 @@ def get_RTDETRv2(device, n_classes, id2label, label2id):
 
     processor = AutoImageProcessor.from_pretrained(checkpoint, trust_remote_code=True)
 
-    transforms = get_transforms()
+    transforms = get_transforms(cfg.model.input_size)
     print("model loaded")
     return (
         model.to(device),

@@ -52,7 +52,11 @@ def main(cfg: DictConfig):
     )
 
     model, transforms, mean, std, model_trans = get_model(
-        cfg, device, len(train_ds.labels), train_ds.id2lbl, train_ds.lbl2id
+        cfg,
+        device,
+        len(train_ds.labels),
+        train_ds.id2lbl,
+        train_ds.lbl2id,
     )  # type:ignore
 
     train_ds.transforms = transforms["train"]
@@ -64,7 +68,7 @@ def main(cfg: DictConfig):
 
     early_stopping = EarlyStopping(cfg.patience, cfg.delta, "checkpoints", name)
 
-    optimizer = get_optimizer(model, cfg.lr, cfg.lr / 10, cfg.weight_decay)
+    optimizer = get_optimizer(model, cfg.lr, cfg.lr / 20, cfg.weight_decay)
     warmup_scheduler = LinearLR(
         optimizer, start_factor=0.1, total_iters=cfg.warmup_epochs
     )
@@ -131,7 +135,7 @@ def main(cfg: DictConfig):
             tqdm.write(f"Early stopping triggered at epoch {epoch + 1}.")
             break
 
-    print("Training finished.")
+    tqdm.write("Training finished.")
 
     if cfg.log:
         run.log({"test/best test map": best_test_map})
