@@ -9,10 +9,10 @@ def get_transforms(input_size):
     transforms = {
         "train": A.Compose(
             [
-                A.RandomResizedCrop(
-                    size=(input_size,input_size),
-                    scale=(0.8, 1.0),
-                    ratio=(3 / 4, 4 / 3),
+                A.RandomSizedBBoxSafeCrop(
+                    height=input_size,
+                    width=input_size,
+                    erosion_rate=0.8,
                     p=1.0,
                 ),
                 A.HorizontalFlip(p=0.5),
