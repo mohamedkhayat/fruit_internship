@@ -1,3 +1,4 @@
+import glob
 from omegaconf import DictConfig
 import hydra
 from utils.data import make_datasets, make_dataloaders
@@ -54,6 +55,11 @@ def main(cfg: DictConfig):
         model, processor, device, cfg, name, run, train_dl, test_dl, val_dl
     )
     print("Setup complete.")
+
+    if cfg.load_ckpt:
+        existing = sorted(glob.glob("checkpoints/.pth"))
+        if existing:
+            trainer._load_checkpoint()
 
     trainer.fit()
 
