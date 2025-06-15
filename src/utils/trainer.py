@@ -159,24 +159,12 @@ def eval(model: nn.Module, device, test_dl, current_epoch, processor):
         )
         sizes = torch.tensor([[img.shape[0], img.shape[1]] for img in x]).to(device)
         preds = processor.post_process_object_detection(
-            out, threshold=0.0, target_sizes=sizes
+            out, threshold=0.001, target_sizes=sizes
         )
         for p in preds:
             topk = p["scores"].argsort(descending=True)[:300]
             for k in ("boxes", "scores", "labels"):
                 p[k] = p[k][topk]
-
-            # conf filter
-            keep = p["scores"] > 0.001
-            for k in ("boxes", "scores", "labels"):
-                p[k] = p[k][keep]
-
-            # per-class NMS
-            keep = torchvision.ops.batched_nms(
-                p["boxes"], p["scores"], p["labels"], 0.7
-            )
-            for k in ("boxes", "scores", "labels"):
-                p[k] = p[k][keep]
 
         preds = nested_to_cpu(preds)
         metric.update(preds, y)
