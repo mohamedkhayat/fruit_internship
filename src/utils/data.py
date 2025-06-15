@@ -108,7 +108,7 @@ def make_dataloaders(
 
     train_dl = DataLoader(
         train_ds,
-        batch_size=cfg.batch_size,
+        batch_size=cfg.step_batch_size,
         shuffle=True,
         num_workers=cfg.num_workers
         if "num_workers" in cfg
@@ -123,7 +123,7 @@ def make_dataloaders(
 
     test_dl = DataLoader(
         test_ds,
-        batch_size=cfg.batch_size,
+        batch_size=cfg.step_batch_size,
         num_workers=4,
         persistent_workers=True,
         pin_memory=True,
@@ -134,7 +134,7 @@ def make_dataloaders(
 
     val_dl = DataLoader(
         val_ds,
-        batch_size=cfg.batch_size,
+        batch_size=cfg.step_batch_size,
         num_workers=4,
         persistent_workers=True,
         pin_memory=True,
