@@ -9,10 +9,10 @@ from timm.data import resolve_data_config
 from .transforms_factory import get_transforms
 
 supported_models = {
-    "detrv2_18" : "PekingU/rtdetr_v2_r18vd",
-    "detrv2_34" : "PekingU/rtdetr_v2_r34vd",
-    "detrv2_50" : "PekingU/rtdetr_v2_r50vd",
-    "detrv2_101" : "PekingU/rtdetr_v2_r101vd"
+    "detrv2_18": "PekingU/rtdetr_v2_r18vd",
+    "detrv2_34": "PekingU/rtdetr_v2_r34vd",
+    "detrv2_50": "PekingU/rtdetr_v2_r50vd",
+    "detrv2_101": "PekingU/rtdetr_v2_r101vd",
 }
 
 
