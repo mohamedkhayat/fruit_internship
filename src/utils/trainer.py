@@ -86,15 +86,21 @@ class Trainer:
         y_metric_format = []
         for target_dict in y:
             annotations = target_dict["annotations"]
+
+            boxes_xywh = np.array([ann["bbox"] for ann in annotations], dtype=np.float32)
+            labels = np.array([ann["category_id"] for ann in annotations], dtype=np.int64)
             
-            boxes = [ann["bbox"] for ann in annotations]
-            labels = [ann["category_id"] for ann in annotations]
-            
+            # Convert from [x, y, w, h] to [x1, y1, x2, y2]
+            boxes_xyxy = boxes_xywh.copy()
+            boxes_xyxy[:, 2] = boxes_xywh[:, 0] + boxes_xywh[:, 2]  # x2 = x1 + w
+            boxes_xyxy[:, 3] = boxes_xywh[:, 1] + boxes_xywh[:, 3]  # y2 = y1 + h
+            boxes = boxes_xyxy
+
             y_metric_format.append(
-                {
-                    "boxes": torch.from_numpy(np.array(boxes,dtype=np.float32)),
-                    "labels": torch.from_numpy(np.array(labels, dtype=np.int64)),
-                }
+            {
+                "boxes": torch.from_numpy(boxes),
+                "labels": torch.from_numpy(labels),
+            }
             )
         return y_metric_format
 
@@ -140,6 +146,7 @@ class Trainer:
 
         loss /= len(self.train_dl)
 
+        tqdm.write(f"Epoch : {current_epoch}")
         tqdm.write(f"\tTrain --- Loss: {loss:.4f}")
 
         return loss
@@ -148,7 +155,7 @@ class Trainer:
     def eval(self, test_dl, current_epoch):
         self.model.eval()
         metric = MeanAveragePrecision(
-            box_format="xywh",
+            box_format="xyxy",
             average="macro",
             max_detection_thresholds=[1, 10, 100],
             iou_thresholds=None,
