@@ -242,7 +242,7 @@ class Trainer:
 
         for epoch in range(self.cfg.epochs):
             epoch_pbar.set_description(f"Epoch {epoch + 1}/{self.cfg.epochs}")
-           
+
             train_loss = self.train(
                 epoch + 1,
             )

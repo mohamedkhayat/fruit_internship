@@ -13,6 +13,7 @@ from torchvision.utils import draw_bounding_boxes
 from torchvision.transforms.functional import to_pil_image
 from .general import unnormalize
 
+
 def initwandb(cfg):
     name = get_run_name(cfg)
     run = wandb.init(
