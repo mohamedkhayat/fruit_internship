@@ -99,11 +99,12 @@ def make_datasets(cfg):
     return train_ds, test_ds, val_ds
 
 
-def make_dataloaders(cfg: DictConfig, generator):
-    train_ds, test_ds, val_ds = make_datasets(cfg)
-
+def make_dataloaders(
+    cfg: DictConfig, train_ds, test_ds, val_ds, generator, processor, transforms
+):
     print("making dataloaders")
     worker_init = functools.partial(seed_worker, base_seed=cfg.seed)
+    collate = functools.partial(collate_fn, processor=processor)
 
     train_dl = DataLoader(
         train_ds,
@@ -117,7 +118,7 @@ def make_dataloaders(cfg: DictConfig, generator):
         drop_last=True,
         worker_init_fn=worker_init,
         generator=generator,
-        collate_fn=collate_fn,
+        collate_fn=collate,
     )
 
     test_dl = DataLoader(
@@ -128,7 +129,7 @@ def make_dataloaders(cfg: DictConfig, generator):
         pin_memory=True,
         worker_init_fn=worker_init,
         generator=generator,
-        collate_fn=collate_fn,
+        collate_fn=collate,
     )
 
     val_dl = DataLoader(
@@ -139,9 +140,9 @@ def make_dataloaders(cfg: DictConfig, generator):
         pin_memory=True,
         worker_init_fn=worker_init,
         generator=generator,
-        collate_fn=collate_fn,
+        collate_fn=collate,
     )
-
+    train_dl, test_dl, val_dl = set_transforms(train_dl, test_dl, val_dl, transforms)
     return train_dl, test_dl, val_dl
 
 
@@ -154,9 +155,10 @@ def get_labels_and_mappings(train_labels, test_labels):
     return labels, id2lbl, lbl2id
 
 
-def collate_fn(batch):
+def collate_fn(batch, processor):
     imgs, targets = list(zip(*batch))
-    return list(imgs), list(targets)
+    batch_processed = processor(images=imgs, annotations=targets, return_tensors="pt")
+    return (batch_processed, list(targets))
 
 
 def set_transforms(

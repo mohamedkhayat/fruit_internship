@@ -50,10 +50,9 @@ class DET_DS(Dataset):
 
                 x1 = (cx - w / 2) * width
                 y1 = (cy - h / 2) * height
-                x2 = (cx + w / 2) * width
-                y2 = (cy + h / 2) * height
-
-                boxes.append([x1, y1, x2, y2])
+                box_w = w * width
+                box_h = h * height
+                boxes.append([x1, y1, box_w, box_h])
                 labels.append(int(cls))
 
         if self.transforms:
@@ -65,19 +64,16 @@ class DET_DS(Dataset):
             labels = augmented["labels"]
 
         target = {
-            "boxes": torch.tensor(boxes, dtype=torch.float32),
-            "labels": torch.tensor(labels, dtype=torch.long),
+            "image_id": idx,
+            "annotations": [
+                {
+                    "bbox": box,
+                    "category_id": label,
+                    "area": box[2] * box[3],
+                    "iscrowd": 0,
+                }
+                for box, label in zip(boxes, labels)
+            ],
+            "orig_size": torch.tensor([height, width]),
         }
         return img, target
-
-
-if __name__ == "__main__":
-    ds = DET_DS(
-        "data/big-Fruits-detection",
-        "train",
-        "images",
-        "labels",
-        config_file="data.yaml",
-    )
-    img, target = ds[0]
-    print(img.shape, target)

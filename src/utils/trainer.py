@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 from torch.amp import GradScaler
 from tqdm import tqdm
@@ -66,22 +67,6 @@ class Trainer:
         )
         return optimizer
 
-    def to_coco_dict(self, idx: int, boxes, labels) -> dict:
-        coco_ann = []
-        for box, cls in zip(boxes, labels):
-            x1, y1, x2, y2 = box.tolist()
-            coco_box = [x1, y1, x2 - x1, y2 - y1]
-            area = (x2 - x1) * (y2 - y1)
-            coco_ann.append(
-                {
-                    "category_id": int(cls),
-                    "bbox": coco_box,
-                    "area": area,
-                    "iscrowd": 0,
-                }
-            )
-        return {"image_id": idx, "annotations": coco_ann}
-
     def move_labels_to_device(self, batch):
         for lab in batch["labels"]:
             for k, v in lab.items():
@@ -96,6 +81,22 @@ class Trainer:
         if isinstance(obj, (list, tuple)):
             return [self.nested_to_cpu(v) for v in obj]
         return obj
+
+    def format_targets_for_map(self, y):
+        y_metric_format = []
+        for target_dict in y:
+            annotations = target_dict["annotations"]
+            
+            boxes = [ann["bbox"] for ann in annotations]
+            labels = [ann["category_id"] for ann in annotations]
+            
+            y_metric_format.append(
+                {
+                    "boxes": torch.from_numpy(np.array(boxes,dtype=np.float32)),
+                    "labels": torch.from_numpy(np.array(labels, dtype=np.int64)),
+                }
+            )
+        return y_metric_format
 
     def train(
         self,
@@ -112,16 +113,8 @@ class Trainer:
             bar_format="{l_bar}{bar:30}{r_bar}{bar:-30b}",
         )
 
-        for batch_idx, (x, y) in enumerate(progress_bar):
-            coco_targets = [
-                self.to_coco_dict(i, t["boxes"], t["labels"]) for i, t in enumerate(y)
-            ]
-            batch = self.processor(
-                images=x,
-                annotations=coco_targets,
-                return_tensors="pt",
-            ).to(self.device)
-
+        for batch_idx, (batch, _) in enumerate(progress_bar):
+            batch = batch.to(self.device)
             batch = self.move_labels_to_device(batch)
             self.optimizer.zero_grad()
 
@@ -155,7 +148,7 @@ class Trainer:
     def eval(self, test_dl, current_epoch):
         self.model.eval()
         metric = MeanAveragePrecision(
-            box_format="xyxy",
+            box_format="xywh",
             average="macro",
             max_detection_thresholds=[1, 10, 100],
             iou_thresholds=None,
@@ -173,16 +166,8 @@ class Trainer:
             bar_format="{l_bar}{bar:30}{r_bar}{bar:-30b}",
         )
 
-        for batch_idx, (x, y) in enumerate(progress_bar):
-            coco_targets = [
-                self.to_coco_dict(i, t["boxes"], t["labels"]) for i, t in enumerate(y)
-            ]
-            batch = self.processor(
-                images=x,
-                annotations=coco_targets,
-                return_tensors="pt",
-            ).to(self.device)
-
+        for batch_idx, (batch, y) in enumerate(progress_bar):
+            batch = batch.to(self.device)
             batch = self.move_labels_to_device(batch)
 
             with torch.autocast(device_type=device_str, dtype=torch.float16):
@@ -199,9 +184,7 @@ class Trainer:
                     "Batch": f"{batch_idx + 1}/{len(test_dl)}",
                 }
             )
-            sizes = torch.tensor([[img.shape[0], img.shape[1]] for img in x]).to(
-                self.device
-            )
+            sizes = torch.stack([t["orig_size"] for t in y])
             preds = self.processor.post_process_object_detection(
                 out, threshold=0.001, target_sizes=sizes
             )
@@ -211,6 +194,7 @@ class Trainer:
                     p[k] = p[k][topk]
 
             preds = self.nested_to_cpu(preds)
+            y = self.format_targets_for_map(y)
             metric.update(preds, y)
 
         stats = metric.compute()
@@ -267,7 +251,7 @@ class Trainer:
         if self.cfg.log:
             self.run.log({"test/best test map": best_test_map})
             # log_confusion_matrix(run, y_true, y_pred, labels)
-            model = self.early_stopping.get_best_model(model)
+            self.model = self.early_stopping.get_best_model(self.model)
 
             val_loss, val_map, val_map50 = self.eval(self.val_dl, epoch + 1)
 

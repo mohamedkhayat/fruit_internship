@@ -12,7 +12,7 @@ def get_transforms(input_size):
                 A.RandomSizedBBoxSafeCrop(
                     height=input_size,
                     width=input_size,
-                    erosion_rate=0.8,
+                    erosion_rate=0.2,
                     p=0.8,
                 ),
                 A.HorizontalFlip(p=0.5),
@@ -22,7 +22,7 @@ def get_transforms(input_size):
                 A.CLAHE(clip_limit=2.0, p=0.2),
             ],
             bbox_params=A.BboxParams(
-                format="pascal_voc",
+                format="coco",
                 label_fields=["labels"],
                 clip=True,
                 min_area=25,
@@ -42,7 +42,7 @@ def get_transforms(input_size):
                 ),
             ],
             bbox_params=A.BboxParams(
-                format="pascal_voc",
+                format="coco",
                 label_fields=["labels"],
                 clip=True,
                 min_area=1,
