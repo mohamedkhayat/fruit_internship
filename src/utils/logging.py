@@ -31,10 +31,7 @@ def initwandb(cfg):
 
 
 def get_run_name(cfg):
-    name = (
-        datetime.now().strftime("%Y%m%d-%H%M%S")
-        + f"_model={cfg.model.name}_lr={cfg.lr}"
-    )
+    name = f"model={cfg.model.name}_lr={cfg.lr}"
     return name
 
 
@@ -202,3 +199,15 @@ def log_class_value_counts(run, samples, stage="Train"):
 
     run.log({f"{stage}_class_distribution": wandb.Image(fig)})
     plt.close(fig)
+
+
+def log_checkpoint_artifact(run, path, name, epoch, wait=False):
+    artifact = wandb.Artifact(
+        name=f"{name}-checkpoint",
+        type="model-checkpoint",
+        description=f"Checkpoint at epoch {epoch}",
+    )
+    artifact.add_file(path)
+    run.log_artifact(artifact)
+    if wait:
+        artifact.wait()
