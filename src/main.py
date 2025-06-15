@@ -48,7 +48,7 @@ def main(cfg: DictConfig):
         train_ds, test_ds, val_ds, cfg, generator
     )
 
-    model, transforms, mean, std, model_trans = get_model(
+    model, transforms, mean, std, processor = get_model(
         cfg,
         device,
         len(train_ds.labels),
@@ -61,11 +61,11 @@ def main(cfg: DictConfig):
     val_ds.transforms = transforms["test"]
 
     log_images(run, next(iter(test_dl)), test_ds.id2lbl)
-    log_transforms(run, next(iter(train_dl)), (3, 3), train_ds.id2lbl)
+    log_transforms(run, next(iter(train_dl)), (3, 3), train_ds.id2lbl, transforms)
 
     early_stopping = EarlyStopping(cfg.patience, cfg.delta, "checkpoints", name)
 
-    optimizer = get_optimizer(model, cfg.lr, cfg.lr / 20, cfg.weight_decay)
+    optimizer = get_optimizer(model, cfg.lr, cfg.lr / cfg.lr_factor, cfg.weight_decay)
     warmup_scheduler = LinearLR(
         optimizer, start_factor=0.1, total_iters=cfg.warmup_epochs
     )
@@ -96,12 +96,12 @@ def main(cfg: DictConfig):
             scaler,
             optimizer,
             epoch + 1,
-            model_trans,
+            processor,
         )
         tqdm.write(f"\tTrain --- Loss: {train_loss:.4f}")
 
         test_loss, test_map, test_map50 = eval(
-            model, device, test_dl, epoch + 1, model_trans
+            model, device, test_dl, epoch + 1, processor
         )
         tqdm.write(
             f"\tEval  --- Loss: {test_loss:.4f}, mAP50-95: {test_map:.4f}, mAP@50 : {test_map50:.4f}"
@@ -141,7 +141,7 @@ def main(cfg: DictConfig):
         model = early_stopping.get_best_model(model)
 
         val_loss, val_map, val_map50 = eval(
-            model, device, val_dl, epoch + 1, model_trans
+            model, device, val_dl, epoch + 1, processor
         )
 
         run.log({"val/loss": val_loss, "val/map": val_map, "val/map@50": val_map50})
