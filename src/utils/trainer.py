@@ -252,8 +252,8 @@ class Trainer:
 
         for epoch in range(self.start_epoch, self.cfg.epochs):
             epoch_pbar.set_description(f"Epoch {epoch + 1}/{self.cfg.epochs}")
-            ckpt_path = self._save_checkpoint(epoch)
             if self.cfg.log and self.run and self.cfg.checkpoint:
+                ckpt_path = self._save_checkpoint(epoch)
                 log_checkpoint_artifact(
                     self.run, ckpt_path, self.cfg.model.name, epoch, self.cfg.wait
                 )
