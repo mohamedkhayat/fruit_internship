@@ -1,6 +1,6 @@
 from omegaconf import DictConfig
 import hydra
-from utils.data import make_datasets, make_dataloaders, download_dataset, set_transforms
+from utils.data import make_datasets, make_dataloaders
 from models.model_factory import get_model
 import torch
 import cv2
@@ -45,10 +45,8 @@ def main(cfg: DictConfig):
         cfg, train_ds, test_ds, val_ds, generator, processor, transforms
     )
 
-    log_images(run, next(iter(test_dl)), test_ds.id2lbl, mean=mean, std=std)
-    log_transforms(
-        run, next(iter(train_dl)), (3, 3), train_ds.id2lbl, transforms, mean, std
-    )
+    log_images(run, next(iter(test_dl)), test_ds.id2lbl, (3,3), mean, std)
+    log_transforms(run, next(iter(train_dl)), (3, 3), train_ds.id2lbl, transforms, mean, std)
 
     trainer = Trainer(
         model, processor, device, cfg, name, run, train_dl, test_dl, val_dl
