@@ -1,3 +1,4 @@
+import random
 import numpy as np
 import torch
 from torch.utils.data import Dataset
@@ -24,7 +25,14 @@ class DET_DS(Dataset):
         self.transforms = transforms
         self.input_size = input_size
         self.config_dir = self.root_dir / config_file
-        self.image_paths = sorted(list(pathlib.Path(self.image_dir).glob("*.jpg")))
+        raw_paths = sorted(list(pathlib.Path(self.image_dir).glob("*.jpg")))
+        valid = []
+        for p in raw_paths:
+            if cv2.imread(str(p)) is not None:
+                valid.append(p)
+            else:
+                print(f"[WARN] dropping bad image {p.name}")
+        self.image_paths = valid
         with open(self.config_dir, "r") as f:
             config = yaml.safe_load(f)
         self.labels = [name for name in config["names"]]
@@ -38,6 +46,10 @@ class DET_DS(Dataset):
         image_path = self.image_paths[idx]
         label_path = pathlib.Path(self.label_dir) / (image_path.stem + ".txt")
         img = cv2.imread(str(image_path))
+        if img is None:
+            new_idx = random.randrange(len(self.image_paths))
+            print("img is empty")
+            return self.__getitem__(new_idx)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
         boxes = []
