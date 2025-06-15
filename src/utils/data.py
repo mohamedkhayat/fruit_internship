@@ -157,7 +157,14 @@ def get_labels_and_mappings(train_labels, test_labels):
 
 def collate_fn(batch, processor):
     imgs, targets = list(zip(*batch))
-    batch_processed = processor(images=imgs, annotations=targets, return_tensors="pt")
+    batch_processed = processor(
+        images=imgs,
+        annotations=targets,
+        return_tensors="pt",
+        do_resize=False,
+        do_pad=False,
+        do_normalize=True,
+    )
     return (batch_processed, list(targets))
 
 

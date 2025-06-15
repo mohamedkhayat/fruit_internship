@@ -8,12 +8,10 @@ from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
 import seaborn as sns
 import time
-from .general import unnormalize
-import seaborn as sns
 import torch
 from torchvision.utils import draw_bounding_boxes
-from torchvision.transforms.functional import to_tensor, to_pil_image
-
+from torchvision.transforms.functional import to_pil_image
+from .general import unnormalize
 
 def initwandb(cfg):
     name = get_run_name(cfg)
@@ -53,6 +51,7 @@ def log_images(run, batch, id2lbl, grid_size=(3, 3), mean=None, std=None):
 
     for i in range(n):
         img = images[i]
+        img = unnormalize(img, mean, std).squeeze(0)
         tgt = targets[i]
 
         img_uint8 = (img * 255).to(torch.uint8)
@@ -100,7 +99,7 @@ def log_transforms(run, batch, grid_size, id2lbl, transforms, mean=None, std=Non
 
     for i in range(n):
         img = images[i]
-
+        img = unnormalize(img, mean, std).squeeze(0)
         tgt = targets[i]
 
         img_uint8 = (img.clamp(0, 1) * 255).to(torch.uint8)
