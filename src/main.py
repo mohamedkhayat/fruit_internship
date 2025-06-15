@@ -31,21 +31,23 @@ def main(cfg: DictConfig):
 
     print(f"using : {device}")
 
-    train_dl, test_dl, val_dl = make_dataloaders(cfg, generator)
+    train_ds, test_ds, val_ds = make_datasets(cfg)
 
     model, transforms, mean, std, processor = get_model(
         cfg,
         device,
-        len(train_dl.dataset.labels),
-        train_dl.dataset.id2lbl,
-        train_dl.dataset.lbl2id,
+        len(train_ds.labels),
+        train_ds.id2lbl,
+        train_ds.lbl2id,
     )
 
-    train_dl, test_dl, val_dl = set_transforms(train_dl, test_dl, val_dl, transforms)
+    train_dl, test_dl, val_dl = make_dataloaders(
+        cfg, train_ds, test_ds, val_ds, generator, processor, transforms
+    )
 
-    log_images(run, next(iter(test_dl)), test_dl.dataset.id2lbl)
+    log_images(run, next(iter(test_dl)), test_ds.id2lbl, mean=mean, std=std)
     log_transforms(
-        run, next(iter(train_dl)), (3, 3), train_dl.dataset.id2lbl, transforms
+        run, next(iter(train_dl)), (3, 3), train_ds.id2lbl, transforms, mean, std
     )
 
     trainer = Trainer(

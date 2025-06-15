@@ -39,9 +39,9 @@ def get_run_name(cfg):
     return name
 
 
-def log_images(run, batch, id2lbl, grid_size=(3, 3)):
-    images, targets = batch
-
+def log_images(run, batch, id2lbl, grid_size=(3, 3), mean=None, std=None):
+    processed_batch, targets = batch
+    images = processed_batch["pixel_values"].detach().clone()
     n_rows, n_cols = grid_size
     max_plots = n_rows * n_cols
     n = min(len(images), max_plots)
@@ -55,13 +55,19 @@ def log_images(run, batch, id2lbl, grid_size=(3, 3)):
         img = images[i]
         tgt = targets[i]
 
-        img_uint8 = (to_tensor(img) * 255).to(torch.uint8)
+        img_uint8 = (img * 255).to(torch.uint8)
 
-        labels = [str(id2lbl[int(lbl)]) for lbl in tgt["labels"].cpu()]
+        boxes = []
+        labels = []
+
+        for ann in tgt["annotations"]:
+            x, y, w, h = ann["bbox"]
+            boxes.append([x, y, x + w, y + h])
+            labels.append(str(id2lbl[int(ann["category_id"])]))
 
         annotated = draw_bounding_boxes(
             img_uint8,
-            boxes=tgt["boxes"].to(torch.int64),
+            boxes=torch.tensor(boxes, dtype=torch.int64),
             labels=labels,
             colors="red",
             width=2,
@@ -80,10 +86,11 @@ def log_images(run, batch, id2lbl, grid_size=(3, 3)):
     plt.close(fig)
 
 
-def log_transforms(run, batch, grid_size, id2lbl, transforms):
+def log_transforms(run, batch, grid_size, id2lbl, transforms, mean=None, std=None):
+    processed_batch, targets = batch
+    images = processed_batch["pixel_values"].detach().clone()
     n_rows, n_cols = grid_size
     max_plots = n_rows * n_cols
-    images, targets = batch
     n = min(len(images), max_plots)
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(10, 6))
     axes = axes.flatten()
@@ -96,13 +103,19 @@ def log_transforms(run, batch, grid_size, id2lbl, transforms):
 
         tgt = targets[i]
 
-        img_uint8 = (to_tensor(img) * 255).to(torch.uint8)
+        img_uint8 = (img.clamp(0, 1) * 255).to(torch.uint8)
 
-        labels = [str(id2lbl[int(lbl)]) for lbl in tgt["labels"].cpu()]
+        boxes = []
+        labels = []
+
+        for ann in tgt["annotations"]:
+            x, y, w, h = ann["bbox"]
+            boxes.append([x, y, x + w, y + h])
+            labels.append(str(id2lbl[int(ann["category_id"])]))
 
         annotated = draw_bounding_boxes(
             img_uint8,
-            boxes=tgt["boxes"].to(torch.int64),
+            boxes=torch.tensor(boxes, dtype=torch.int64),
             labels=labels,
             colors="red",
             width=2,
