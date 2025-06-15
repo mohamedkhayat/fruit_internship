@@ -80,7 +80,7 @@ def log_images(run, batch, id2lbl, grid_size=(3, 3)):
     plt.close(fig)
 
 
-def log_transforms(run, batch, grid_size, id2lbl):
+def log_transforms(run, batch, grid_size, id2lbl, transforms):
     n_rows, n_cols = grid_size
     max_plots = n_rows * n_cols
     images, targets = batch
@@ -115,6 +115,7 @@ def log_transforms(run, batch, grid_size, id2lbl):
 
     if run:
         run.log({f"Post transform examples": wandb.Image(fig)})
+        run.log({f"transforms": transforms})
     else:
         plt.show()
 
