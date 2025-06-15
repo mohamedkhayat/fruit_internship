@@ -1,7 +1,5 @@
 import torch
-import torch.nn as nn
 from torch.amp import GradScaler
-import torchvision
 from tqdm import tqdm
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
 from .early_stop import EarlyStopping
@@ -271,9 +269,7 @@ class Trainer:
             # log_confusion_matrix(run, y_true, y_pred, labels)
             model = self.early_stopping.get_best_model(model)
 
-            val_loss, val_map, val_map50 = self.eval(
-                self.val_dl, epoch + 1
-            )
+            val_loss, val_map, val_map50 = self.eval(self.val_dl, epoch + 1)
 
             self.run.log(
                 {"val/loss": val_loss, "val/map": val_map, "val/map@50": val_map50}
