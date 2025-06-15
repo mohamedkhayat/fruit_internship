@@ -1,6 +1,7 @@
 import torch
 import pathlib
 from tqdm import tqdm
+import wandb
 
 
 class EarlyStopping:
@@ -71,5 +72,12 @@ class EarlyStopping:
         if len(self.saved_checkpoints) > 0:
             _, best_path = max(self.saved_checkpoints, key=lambda x: x[0])
             model.load_state_dict(torch.load(best_path, weights_only=True))
-
+            artifact = wandb.Artifact(
+                name=f"{self.name}-checkpoint",
+                type="model-earlystopping-bestmodel",
+                description=f"best model at epoch",
+            )
+            artifact.add_file(best_path)
+            self.run.log_artifact(artifact)
+            artifact.wait()
         return model
