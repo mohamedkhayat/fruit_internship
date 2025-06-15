@@ -1,13 +1,9 @@
 import functools
 import pathlib
 import re
-
-import torch
-from .datasets.cls_dataset import CLS_DS
 from .datasets.det_dataset import DET_DS
 from torch.utils.data import DataLoader
 from omegaconf import DictConfig
-from torch.utils.data import Dataset
 from .general import seed_worker
 import os
 
@@ -24,23 +20,27 @@ ACCEPTED_LABELS = [
     "tomato",
     "pepper",
 ]
-def download_dataset():
-    username = os.getenv('KAGGLE_USERNAME')
-    api_key = os.getenv('KAGGLE_KEY')
-    if api_key or username is None:
-        raise RuntimeError("Environment variable 'kaggle_key' and or 'username' is not set!")
 
-    os.environ['KAGGLE_USERNAME'] = 'username'
-    os.environ['KAGGLE_KEY'] = api_key
+
+def download_dataset():
+    username = os.getenv("KAGGLE_USERNAME")
+    api_key = os.getenv("KAGGLE_KEY")
+    if api_key or username is None:
+        raise RuntimeError(
+            "Environment variable 'kaggle_key' and or 'username' is not set!"
+        )
+
+    os.environ["KAGGLE_USERNAME"] = "username"
+    os.environ["KAGGLE_KEY"] = api_key
 
     from kaggle import api
 
     api.authenticate()
+    print("download dataset")
     api.dataset_download_files(
-        'lakshaytyagi01/fruit-detection',
-        path='./data',
-        unzip=True
+        "lakshaytyagi01/fruit-detection", path="./data", unzip=True
     )
+
 
 def get_samples(root_dir: str, folder: str, debug=False):
     print(f"extracting {folder} samples")
@@ -63,6 +63,9 @@ def get_samples(root_dir: str, folder: str, debug=False):
 
 
 def make_datasets(cfg):
+    if cfg.download_data:
+        download_dataset()
+
     print("making datasets")
 
     train_ds = DET_DS(
@@ -96,9 +99,9 @@ def make_datasets(cfg):
     return train_ds, test_ds, val_ds
 
 
-def make_dataloaders(
-    train_ds: Dataset, test_ds: Dataset, val_ds: Dataset, cfg: DictConfig, generator
-):
+def make_dataloaders(cfg: DictConfig, generator):
+    train_ds, test_ds, val_ds = make_datasets(cfg)
+
     print("making dataloaders")
     worker_init = functools.partial(seed_worker, base_seed=cfg.seed)
 
@@ -154,3 +157,13 @@ def get_labels_and_mappings(train_labels, test_labels):
 def collate_fn(batch):
     imgs, targets = list(zip(*batch))
     return list(imgs), list(targets)
+
+
+def set_transforms(
+    train_dl: DataLoader, test_dl: DataLoader, val_dl: DataLoader, transforms
+):
+    train_dl.dataset.transforms = transforms["train"]
+    test_dl.dataset.transforms = transforms["test"]
+    val_dl.dataset.transforms = transforms["test"]
+
+    return train_dl, test_dl, val_dl
