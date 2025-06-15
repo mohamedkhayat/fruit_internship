@@ -1,8 +1,11 @@
+import os
 import numpy as np
 import torch
 from torch.amp import GradScaler
 from tqdm import tqdm
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
+
+from utils.logging import log_checkpoint_artifact
 from .early_stop import EarlyStopping
 from torch.optim.lr_scheduler import CosineAnnealingLR, SequentialLR, LinearLR
 
@@ -26,6 +29,12 @@ class Trainer:
         self.train_dl = train_dl
         self.test_dl = test_dl
         self.val_dl = val_dl
+        self.start_epoch = 0
+        self.accum_steps = self.cfg.effective_batch_size // self.cfg.step_batch_size
+        assert self.cfg.effective_batch_size % self.cfg.step_batch_size == 0, (
+            f"effective_batch_size ({self.cfg.effective_batch_size}) must be divisible by batch_size "
+            f"({self.step_batch_size})."
+        )
 
     def get_scheduler(self):
         warmup_scheduler = LinearLR(
@@ -122,21 +131,22 @@ class Trainer:
             leave=False,
             bar_format="{l_bar}{bar:30}{r_bar}{bar:-30b}",
         )
-
         for batch_idx, (batch, _) in enumerate(progress_bar):
             batch = batch.to(self.device)
             batch = self.move_labels_to_device(batch)
-            self.optimizer.zero_grad()
 
             with torch.autocast(device_type=device_str, dtype=torch.float16):
                 out = self.model(**batch)
-                batch_loss = out.loss
+                batch_loss = out.loss / self.accum_steps
 
             self.scaler.scale(batch_loss).backward()
-            self.scaler.unscale_(self.optimizer)
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
-            self.scaler.step(self.optimizer)
-            self.scaler.update()
+
+            if (batch_idx + 1) % self.accum_steps == 0:
+                self.scaler.unscale_(self.optimizer)
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
+                self.optimizer.zero_grad()
 
             loss += batch_loss.item()
 
@@ -240,8 +250,13 @@ class Trainer:
 
         best_test_map = 0
 
-        for epoch in range(self.cfg.epochs):
+        for epoch in range(self.start_epoch, self.cfg.epochs):
             epoch_pbar.set_description(f"Epoch {epoch + 1}/{self.cfg.epochs}")
+            ckpt_path = self._save_checkpoint(epoch)
+            if self.cfg.log and self.run and self.cfg.checkpoint:
+                log_checkpoint_artifact(
+                    self.run, ckpt_path, self.cfg.model.name, epoch, self.cfg.wait
+                )
 
             train_loss = self.train(
                 epoch + 1,
@@ -309,3 +324,26 @@ class Trainer:
         )
 
         epoch_pbar.close()
+
+    def _save_checkpoint(self, epoch):
+        tqdm.write("saving checkpoint")
+        ckpt = {
+            "epoch": epoch,
+            "model": self.model.state_dict(),
+            "optimizer": self.optimizer.state_dict(),
+            "scheduler": self.scheduler.state_dict(),
+            "scaler": self.scaler.state_dict(),
+        }
+        path = os.path.join("checkpoints", f"{self.name}_epoch{epoch}.pth")
+        torch.save(ckpt, path)
+        tqdm.write("done saving checkpoint")
+        return path
+
+    def _load_checkpoint(self, path):
+        tqdm.write("loading checkpoint")
+        ckpt = torch.load(path, map_location=self.device)
+        self.model.load_state_dict(ckpt["model"])
+        self.optimizer.load_state_dict(ckpt["optimizer"])
+        self.scheduler.load_state_dict(ckpt["scheduler"])
+        self.scaler.load_state_dict(ckpt["scaler"])
+        self.start_epoch = ckpt["epoch"] + 1
