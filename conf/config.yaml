@@ -18,3 +18,4 @@ delta : 0.001
 num_workers : 4
 task : det
 download_data : False
+lr_factor : 50
