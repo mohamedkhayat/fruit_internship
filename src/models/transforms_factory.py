@@ -13,7 +13,7 @@ def get_transforms(input_size):
                     height=input_size,
                     width=input_size,
                     erosion_rate=0.8,
-                    p=1.0,
+                    p=0.8,
                 ),
                 A.HorizontalFlip(p=0.5),
                 A.RGBShift(15, 15, 15, p=0.5),
