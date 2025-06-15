@@ -3,10 +3,8 @@ import hydra
 from utils.data import make_datasets, make_dataloaders, download_dataset, set_transforms
 from models.model_factory import get_model
 import torch
-import torch.nn as nn
 import cv2
 from utils.trainer import Trainer
-from tqdm import tqdm
 from utils.logging import (
     initwandb,
     get_run_name,
@@ -20,9 +18,6 @@ cv2.setNumThreads(0)
 
 @hydra.main(version_base=None, config_path="../conf", config_name="config")
 def main(cfg: DictConfig):
-    if cfg.download_data:
-        download_dataset()
-
     if cfg.log:
         run = initwandb(cfg)
         name = run.name
@@ -36,23 +31,22 @@ def main(cfg: DictConfig):
 
     print(f"using : {device}")
 
-    train_ds, test_ds, val_ds = make_datasets(cfg)
-    train_dl, test_dl, val_dl = make_dataloaders(
-        train_ds, test_ds, val_ds, cfg, generator
-    )
+    train_dl, test_dl, val_dl = make_dataloaders(cfg, generator)
 
     model, transforms, mean, std, processor = get_model(
         cfg,
         device,
-        len(train_ds.labels),
-        train_ds.id2lbl,
-        train_ds.lbl2id,
-    )  # type:ignore
+        len(train_dl.dataset.labels),
+        train_dl.dataset.id2lbl,
+        train_dl.dataset.lbl2id,
+    )
 
-    train_ds, test_ds, val_ds = set_transforms(train_ds, test_ds, val_ds, transforms)
+    train_dl, test_dl, val_dl = set_transforms(train_dl, test_dl, val_dl, transforms)
 
-    log_images(run, next(iter(test_dl)), test_ds.id2lbl)
-    log_transforms(run, next(iter(train_dl)), (3, 3), train_ds.id2lbl, transforms)
+    log_images(run, next(iter(test_dl)), test_dl.dataset.id2lbl)
+    log_transforms(
+        run, next(iter(train_dl)), (3, 3), train_dl.dataset.id2lbl, transforms
+    )
 
     trainer = Trainer(
         model, processor, device, cfg, name, run, train_dl, test_dl, val_dl
