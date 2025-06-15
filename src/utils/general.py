@@ -8,7 +8,6 @@ from torchvision.transforms.functional import to_pil_image
 from transformers import (
     AutoModelForImageClassification,
 )
-import inspect
 import transformers
 import timm
 
