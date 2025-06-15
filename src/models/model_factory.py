@@ -3,9 +3,6 @@ from transformers import (
     AutoModelForObjectDetection,
     AutoConfig,
 )
-import torch.nn as nn
-import timm
-from timm.data import resolve_data_config
 from .transforms_factory import get_transforms
 
 supported_models = {
