@@ -87,9 +87,13 @@ class Trainer:
         for target_dict in y:
             annotations = target_dict["annotations"]
 
-            boxes_xywh = np.array([ann["bbox"] for ann in annotations], dtype=np.float32)
-            labels = np.array([ann["category_id"] for ann in annotations], dtype=np.int64)
-            
+            boxes_xywh = np.array(
+                [ann["bbox"] for ann in annotations], dtype=np.float32
+            )
+            labels = np.array(
+                [ann["category_id"] for ann in annotations], dtype=np.int64
+            )
+
             # Convert from [x, y, w, h] to [x1, y1, x2, y2]
             boxes_xyxy = boxes_xywh.copy()
             boxes_xyxy[:, 2] = boxes_xywh[:, 0] + boxes_xywh[:, 2]  # x2 = x1 + w
@@ -97,10 +101,10 @@ class Trainer:
             boxes = boxes_xyxy
 
             y_metric_format.append(
-            {
-                "boxes": torch.from_numpy(boxes),
-                "labels": torch.from_numpy(labels),
-            }
+                {
+                    "boxes": torch.from_numpy(boxes),
+                    "labels": torch.from_numpy(labels),
+                }
             )
         return y_metric_format
 
@@ -208,13 +212,28 @@ class Trainer:
         metric.reset()
 
         loss /= len(test_dl)
-        test_map, test_map50 = stats["map"].item(), stats["map_50"].item()
+        test_map, test_map50, test_map_50_per_class = (
+            stats["map"].item(),
+            stats["map_50"].item(),
+            stats["map_per_class"],
+        )
 
         tqdm.write(
             f"\tEval  --- Loss: {loss:.4f}, mAP50-95: {test_map:.4f}, mAP@50 : {test_map50:.4f}"
         )
 
-        return loss, test_map, test_map50
+        tqdm.write("\t--- Per-class mAP@50 ---")
+        class_names = test_dl.dataset.labels
+        if test_map_50_per_class.is_cuda:
+            test_map_50_per_class = test_map_50_per_class.cpu()
+
+        for i, class_name in enumerate(class_names):
+            if i < len(test_map_50_per_class):
+                tqdm.write(
+                    f"\t\t{class_name:<15}: {test_map_50_per_class[i].item():.4f}"
+                )
+
+        return loss, test_map, test_map50, test_map_50_per_class
 
     def fit(self):
         epoch_pbar = tqdm(total=self.cfg.epochs, desc="Epochs", position=0, leave=True)
@@ -223,12 +242,14 @@ class Trainer:
 
         for epoch in range(self.cfg.epochs):
             epoch_pbar.set_description(f"Epoch {epoch + 1}/{self.cfg.epochs}")
-
+           
             train_loss = self.train(
                 epoch + 1,
             )
 
-            test_loss, test_map, test_map50 = self.eval(self.test_dl, epoch + 1)
+            test_loss, test_map, test_map50, test_map_per_class = self.eval(
+                self.test_dl, epoch + 1
+            )
 
             self.scheduler.step()
 
@@ -237,18 +258,23 @@ class Trainer:
             best_test_map = max(test_map50, best_test_map)
 
             if self.cfg.log:
-                self.run.log(
-                    {
-                        "epoch": epoch,
-                        "train/loss": train_loss,
-                        "test/map": test_map,
-                        "test/map 50": test_map50,
-                        "test/loss": test_loss,
-                        "Learning rate": float(
-                            f"{self.scheduler.get_last_lr()[0]:.6f}"
-                        ),
-                    },
-                )
+                log_data = {
+                    "epoch": epoch,
+                    "train/loss": train_loss,
+                    "test/map": test_map,
+                    "test/map 50": test_map50,
+                    "test/loss": test_loss,
+                    "Learning rate": float(f"{self.scheduler.get_last_lr()[0]:.6f}"),
+                }
+
+                class_names = self.test_dl.dataset.labels
+                map_50_per_class = test_map_per_class.cpu()
+                for i, name in enumerate(class_names):
+                    if i < len(map_50_per_class):
+                        log_data[f"test/map_50/{name}"] = map_50_per_class[i].item()
+
+            self.run.log(log_data)
+
             if self.early_stopping(test_map, self.model):
                 tqdm.write(f"Early stopping triggered at epoch {epoch + 1}.")
                 break
@@ -256,15 +282,26 @@ class Trainer:
         tqdm.write("Training finished.")
 
         if self.cfg.log:
-            self.run.log({"test/best test map": best_test_map})
-            # log_confusion_matrix(run, y_true, y_pred, labels)
             self.model = self.early_stopping.get_best_model(self.model)
 
-            val_loss, val_map, val_map50 = self.eval(self.val_dl, epoch + 1)
-
-            self.run.log(
-                {"val/loss": val_loss, "val/map": val_map, "val/map@50": val_map50}
+            val_loss, val_map, val_map50, val_map_50_per_class = self.eval(
+                self.val_dl, epoch + 1
             )
+            log_data = {
+                "test/best test map": best_test_map,
+                "val/loss": val_loss,
+                "val/map": val_map,
+                "val/map@50": val_map50,
+            }
+
+            tqdm.write("\t--- Per-class mAP@50 ---")
+            class_names = self.val_dl.dataset.labels
+            map_50_per_class = val_map_50_per_class.cpu()
+            for i, name in enumerate(class_names):
+                if i < len(map_50_per_class):
+                    log_data[f"val/map_50/{name}"] = map_50_per_class[i].item()
+
+            self.run.log(log_data)
             self.run.finish()
 
         tqdm.write(
