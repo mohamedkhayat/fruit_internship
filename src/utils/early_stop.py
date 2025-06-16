@@ -5,14 +5,14 @@ import wandb
 
 
 class EarlyStopping:
-    def __init__(self, patience, delta, path, name):
+    def __init__(self, patience, delta, path, name, cfg):
         self.patience = patience
         self.delta = delta
 
         self.path = pathlib.Path(path)
         self.path.mkdir(parents=True, exist_ok=True)
         self.name = name
-
+        self.cfg = cfg
         self.best_metric = None
         self.counter = 0
         self.earlystop = False
@@ -73,7 +73,7 @@ class EarlyStopping:
             _, best_path = max(self.saved_checkpoints, key=lambda x: x[0])
             model.load_state_dict(torch.load(best_path, weights_only=True))
             artifact = wandb.Artifact(
-                name=f"{self.name}-checkpoint",
+                name=f"{self.cfg.model.name}",
                 type="model-earlystopping-bestmodel",
                 description=f"best model at epoch",
             )

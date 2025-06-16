@@ -22,7 +22,7 @@ class Trainer:
         self.processor = processor
         self.name = name
         self.early_stopping = EarlyStopping(
-            cfg.patience, cfg.delta, "checkpoints", name
+            cfg.patience, cfg.delta, "checkpoints", name, cfg
         )
         self.scheduler = self.get_scheduler()
         self.run = run
