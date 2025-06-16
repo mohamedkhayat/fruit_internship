@@ -16,6 +16,7 @@ from utils.general import set_seed
 
 cv2.setNumThreads(0)
 
+
 @hydra.main(version_base=None, config_path="../conf", config_name="config")
 def main(cfg: DictConfig):
     if cfg.log:
