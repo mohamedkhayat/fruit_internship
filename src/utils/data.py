@@ -2,10 +2,13 @@ import functools
 import pathlib
 import re
 from .datasets.det_dataset import DET_DS
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 from omegaconf import DictConfig
 from .general import seed_worker
 import os
+from collections import Counter
+import torch
+
 
 ACCEPTED_LABELS = [
     "apple",
@@ -99,17 +102,39 @@ def make_datasets(cfg):
     return train_ds, test_ds, val_ds
 
 
+def get_sampler(train_ds):
+    class_counts = Counter()
+    for _, target in train_ds:
+        classes = {ann["category_id"] for ann in target["annotations"]}
+        class_counts.update(classes)
+
+    class_weights = {c: 1.0 / cnt for c, cnt in class_counts.items()}
+
+    weights = []
+    for _, target in train_ds:
+        classes = {ann["category_id"] for ann in target["annotations"]}
+        weights.append(max(class_weights[c] for c in classes))  # maybe try mean
+
+    weights = torch.tensor(weights, dtype=torch.double)
+    sampler = WeightedRandomSampler(weights, num_samples=len(weights), replacement=True)
+
+    return sampler
+
+
 def make_dataloaders(
     cfg: DictConfig, train_ds, test_ds, val_ds, generator, processor, transforms
 ):
     print("making dataloaders")
+
     worker_init = functools.partial(seed_worker, base_seed=cfg.seed)
     collate = functools.partial(collate_fn, processor=processor)
+
+    sampler = get_sampler(train_ds)
 
     train_dl = DataLoader(
         train_ds,
         batch_size=cfg.step_batch_size,
-        shuffle=True,
+        sampler=sampler,
         num_workers=cfg.num_workers
         if "num_workers" in cfg
         else max(1, os.cpu_count() - 1),
