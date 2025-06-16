@@ -5,13 +5,13 @@ import cv2
 os.environ["NO_ALBUMENTATIONS_UPDATE"] = "1"
 
 
-def get_transforms(input_size):
+def get_transforms(cfg):
     transforms = {
         "train": A.Compose(
             [
                 A.RandomSizedBBoxSafeCrop(
-                    height=input_size,
-                    width=input_size,
+                    height=cfg.model.input_size,
+                    width=cfg.model.input_size,
                     erosion_rate=0.2,
                     p=0.8,
                 ),
@@ -25,17 +25,17 @@ def get_transforms(input_size):
                 format="coco",
                 label_fields=["labels"],
                 clip=True,
-                min_area=25,
+                min_area=cfg.min_area,
                 min_width=1,
                 min_height=1,
             ),
         ),
         "test": A.Compose(
             [
-                A.LongestMaxSize(max_size=input_size, p=1.0),
+                A.LongestMaxSize(max_size=cfg.model.input_size, p=1.0),
                 A.PadIfNeeded(
-                    min_height=input_size,
-                    min_width=input_size,
+                    min_height=cfg.model.input_size,
+                    min_width=cfg.model.input_size,
                     border_mode=cv2.BORDER_CONSTANT,
                     fill=0,
                     p=1.0,
