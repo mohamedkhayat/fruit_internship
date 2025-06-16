@@ -16,7 +16,12 @@ def get_transforms(cfg):
                     p=0.8,
                 ),
                 A.HorizontalFlip(p=0.5),
-                A.RGBShift(15, 15, 15, p=0.5),
+                A.OneOf([
+                    A.RGBShift(15, 15, 15, p=1.0),
+                    A.HueSaturationValue(hue_shift_limit=10, sat_shift_limit = 25, val_shift_limit=10, p=1.0),
+                    A.ToGray(p=1.0),
+                    A.RandomToneCurve(p=1.0),
+                ]),
                 A.RandomBrightnessContrast(p=0.5),
                 A.HueSaturationValue(10, 25, 10, p=0.3),
                 A.CLAHE(clip_limit=2.0, p=0.2),
