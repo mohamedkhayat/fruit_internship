@@ -23,7 +23,6 @@ def get_transforms(cfg):
                     A.RandomToneCurve(p=1.0),
                 ]),
                 A.RandomBrightnessContrast(p=0.5),
-                A.HueSaturationValue(10, 25, 10, p=0.3),
                 A.CLAHE(clip_limit=2.0, p=0.2),
             ],
             bbox_params=A.BboxParams(
