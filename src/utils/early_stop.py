@@ -5,7 +5,7 @@ import wandb
 
 
 class EarlyStopping:
-    def __init__(self, patience, delta, path, name, cfg):
+    def __init__(self, patience, delta, path, name, cfg, run):
         self.patience = patience
         self.delta = delta
 
@@ -13,6 +13,7 @@ class EarlyStopping:
         self.path.mkdir(parents=True, exist_ok=True)
         self.name = name
         self.cfg = cfg
+        self.run = run
         self.best_metric = None
         self.counter = 0
         self.earlystop = False
