@@ -12,11 +12,9 @@ root_dir: Fruits-detection
 log : True
 seed : 42
 n_images : 6
-freeze : False
 patience : 5
 delta : 0.001
 num_workers : 4
-task : det
 download_data : False
 lr_factor : 50
 load_ckpt : False
@@ -24,6 +22,6 @@ checkpoint : False
 wait : False
 info : False
 min_area : 512
-min_viz : 0.3
-min_width : 8
-min_height : 8
+min_viz : 0.4
+min_width : 14
+min_height : 14
