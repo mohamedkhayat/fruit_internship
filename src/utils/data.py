@@ -8,6 +8,16 @@ from .general import seed_worker
 import os
 from collections import Counter
 import torch
+from hydra.utils import get_original_cwd
+import resource  # <-- Import the resource module
+
+# Increase the number of open file descriptors
+try:
+    rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
+    # Set the soft limit to the hard limit
+    resource.setrlimit(resource.RLIMIT_NOFILE, (rlimit[1], rlimit[1]))
+except (ValueError, OSError) as e:
+    print(f"Could not set RLIMIT_NOFILE: {e}")
 
 
 ACCEPTED_LABELS = [
@@ -28,12 +38,12 @@ ACCEPTED_LABELS = [
 def download_dataset():
     username = os.getenv("KAGGLE_USERNAME")
     api_key = os.getenv("KAGGLE_KEY")
-    if api_key or username is None:
+    if api_key is None or username is None:
         raise RuntimeError(
             "Environment variable 'kaggle_key' and or 'username' is not set!"
         )
 
-    os.environ["KAGGLE_USERNAME"] = "username"
+    os.environ["KAGGLE_USERNAME"] = username
     os.environ["KAGGLE_KEY"] = api_key
 
     from kaggle import api
@@ -70,9 +80,10 @@ def make_datasets(cfg):
         download_dataset()
 
     print("making datasets")
-
+    data_dir = os.path.join(get_original_cwd(), "data", cfg.root_dir)
+    
     train_ds = DET_DS(
-        cfg.root_dir,
+        data_dir,
         "train",
         "images",
         "labels",
@@ -81,7 +92,7 @@ def make_datasets(cfg):
         cfg.model.input_size,
     )
     test_ds = DET_DS(
-        cfg.root_dir,
+        data_dir,
         "test",
         "images",
         "labels",
@@ -90,7 +101,7 @@ def make_datasets(cfg):
         cfg.model.input_size,
     )
     val_ds = DET_DS(
-        cfg.root_dir,
+        data_dir,
         "valid",
         "images",
         "labels",
@@ -149,7 +160,9 @@ def make_dataloaders(
     test_dl = DataLoader(
         test_ds,
         batch_size=cfg.step_batch_size,
-        num_workers=4,
+        num_workers=cfg.num_workers
+        if "num_workers" in cfg
+        else max(1, os.cpu_count() - 1),
         persistent_workers=True,
         pin_memory=True,
         worker_init_fn=worker_init,
@@ -160,7 +173,9 @@ def make_dataloaders(
     val_dl = DataLoader(
         val_ds,
         batch_size=cfg.step_batch_size,
-        num_workers=4,
+        num_workers=cfg.num_workers
+        if "num_workers" in cfg
+        else max(1, os.cpu_count() - 1),
         persistent_workers=True,
         pin_memory=True,
         worker_init_fn=worker_init,

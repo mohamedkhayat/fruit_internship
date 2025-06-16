@@ -6,7 +6,6 @@ import pathlib
 import cv2
 import yaml
 
-
 class DET_DS(Dataset):
     def __init__(
         self,
@@ -26,6 +25,7 @@ class DET_DS(Dataset):
         self.input_size = input_size
         self.config_dir = self.root_dir / config_file
         raw_paths = sorted(list(pathlib.Path(self.image_dir).glob("*.jpg")))
+
         valid = []
         for p in raw_paths:
             if cv2.imread(str(p)) is not None:
@@ -45,7 +45,7 @@ class DET_DS(Dataset):
     def __getitem__(self, idx):
         image_path = self.image_paths[idx]
         label_path = pathlib.Path(self.label_dir) / (image_path.stem + ".txt")
-        img = cv2.imread(str(image_path))
+        img = cv2.imread(image_path)
         if img is None:
             new_idx = random.randrange(len(self.image_paths))
             print("img is empty")
