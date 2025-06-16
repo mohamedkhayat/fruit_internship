@@ -122,15 +122,19 @@ class Trainer:
         current_epoch,
     ):
         self.model.train()
+        self.optimizer.zero_grad(set_to_none=True)
+
         loss = 0.0
 
         device_str = str(self.device).split(":")[0]
+
         progress_bar = tqdm(
             self.train_dl,
             desc=f"Epoch {current_epoch} Training",
             leave=False,
             bar_format="{l_bar}{bar:30}{r_bar}{bar:-30b}",
         )
+
         for batch_idx, (batch, _) in enumerate(progress_bar):
             batch = batch.to(self.device)
             batch = self.move_labels_to_device(batch)
@@ -148,7 +152,7 @@ class Trainer:
                 self.scaler.update()
                 self.optimizer.zero_grad()
 
-            loss += batch_loss.item()
+            loss += out.loss.item()
 
             current_avg_loss = loss / (batch_idx + 1)
             progress_bar.set_postfix(
