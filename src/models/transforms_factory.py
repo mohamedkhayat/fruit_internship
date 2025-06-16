@@ -13,17 +13,19 @@ def get_transforms(cfg):
                     height=cfg.model.input_size,
                     width=cfg.model.input_size,
                     erosion_rate=0.2,
-                    p=0.8,
+                    p=1.0,
                 ),
                 A.HorizontalFlip(p=0.5),
                 A.OneOf([
                     A.RGBShift(15, 15, 15, p=1.0),
                     A.HueSaturationValue(hue_shift_limit=10, sat_shift_limit = 25, val_shift_limit=10, p=1.0),
                     A.ToGray(p=1.0),
+                ],p=0.6),
+                A.OneOf([
+                    A.RandomBrightnessContrast(p=1.0),
                     A.RandomToneCurve(p=1.0),
-                ]),
-                A.RandomBrightnessContrast(p=0.5),
-                A.CLAHE(clip_limit=2.0, p=0.2),
+                ],p=0.5),
+                A.CLAHE(clip_limit=2.0, p=0.3),
             ],
             bbox_params=A.BboxParams(
                 format="coco",
