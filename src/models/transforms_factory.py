@@ -25,9 +25,10 @@ def get_transforms(cfg):
                 format="coco",
                 label_fields=["labels"],
                 clip=True,
+                min_visibility=cfg.min_viz,
                 min_area=cfg.min_area,
-                min_width=1,
-                min_height=1,
+                min_width=cfg.min_width,
+                min_height=cfg.min_height,
             ),
         ),
         "test": A.Compose(
@@ -45,9 +46,6 @@ def get_transforms(cfg):
                 format="coco",
                 label_fields=["labels"],
                 clip=True,
-                min_area=1,
-                min_width=1,
-                min_height=1,
             ),
         ),
     }

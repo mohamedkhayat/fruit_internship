@@ -35,8 +35,6 @@ class EarlyStopping:
             tqdm.write(f"saved model weights")
 
         if self.counter >= self.patience:
-            print("")
-            tqdm.write(f"early stop triggered")
             self.earlystop = True
 
         return self.earlystop

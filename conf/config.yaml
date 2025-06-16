@@ -23,4 +23,7 @@ load_ckpt : False
 checkpoint : False
 wait : False
 info : False
-min_area : 10
+min_area : 512
+min_viz : 0.3
+min_width : 8
+min_height : 8

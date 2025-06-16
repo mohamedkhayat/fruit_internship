@@ -277,22 +277,15 @@ class Trainer:
             best_test_map = max(test_map50, best_test_map)
 
             if self.cfg.log:
-                log_data = {
-                    "epoch": epoch,
-                    "train/loss": train_loss,
-                    "test/map": test_map,
-                    "test/map 50": test_map50,
-                    "test/loss": test_loss,
-                    "Learning rate": float(f"{self.scheduler.get_last_lr()[0]:.6f}"),
-                }
-
-                class_names = self.test_dl.dataset.labels
-                map_50_per_class = test_map_per_class.cpu()
-                for i, name in enumerate(class_names):
-                    if i < len(map_50_per_class):
-                        log_data[f"test/map_50/{name}"] = map_50_per_class[i].item()
-
-            self.run.log(log_data)
+                log_data = self.get_epoch_log_data(
+                    epoch,
+                    train_loss,
+                    test_map,
+                    test_map50,
+                    test_loss,
+                    test_map_per_class,
+                )
+                self.run.log(log_data)
 
             if self.early_stopping(test_map, self.model):
                 tqdm.write(f"Early stopping triggered at epoch {epoch + 1}.")
@@ -301,31 +294,9 @@ class Trainer:
         tqdm.write("Training finished.")
 
         if self.cfg.log:
-            self.model = self.early_stopping.get_best_model(self.model)
-
-            val_loss, val_map, val_map50, val_map_50_per_class = self.eval(
-                self.val_dl, epoch + 1
-            )
-            log_data = {
-                "test/best test map": best_test_map,
-                "val/loss": val_loss,
-                "val/map": val_map,
-                "val/map@50": val_map50,
-            }
-
-            tqdm.write("\t--- Per-class mAP@50 ---")
-            class_names = self.val_dl.dataset.labels
-            map_50_per_class = val_map_50_per_class.cpu()
-            for i, name in enumerate(class_names):
-                if i < len(map_50_per_class):
-                    log_data[f"val/map_50/{name}"] = map_50_per_class[i].item()
-
+            log_data = self.get_val_log_data(epoch, best_test_map)
             self.run.log(log_data)
             self.run.finish()
-
-        tqdm.write(
-            f"\tVal  --- Loss: {val_loss:.4f}, mAP50-95: {val_map:.4f}, mAP@50 : {val_map50:.4f}"
-        )
 
         epoch_pbar.close()
 
@@ -351,3 +322,48 @@ class Trainer:
         self.scheduler.load_state_dict(ckpt["scheduler"])
         self.scaler.load_state_dict(ckpt["scaler"])
         self.start_epoch = ckpt["epoch"] + 1
+
+    def get_epoch_log_data(
+        self, epoch, train_loss, test_map, test_map50, test_loss, test_map_per_class
+    ):
+        log_data = {
+            "epoch": epoch,
+            "train/loss": train_loss,
+            "test/map": test_map,
+            "test/map 50": test_map50,
+            "test/loss": test_loss,
+            "Learning rate": float(f"{self.scheduler.get_last_lr()[0]:.6f}"),
+        }
+
+        class_names = self.test_dl.dataset.labels
+        map_50_per_class = test_map_per_class.cpu()
+        for i, name in enumerate(class_names):
+            if i < len(map_50_per_class):
+                log_data[f"test/map_50/{name}"] = map_50_per_class[i].item()
+
+        return log_data
+
+    def get_val_log_data(self, epoch, best_test_map):
+        self.model = self.early_stopping.get_best_model(self.model)
+
+        val_loss, val_map, val_map50, val_map_50_per_class = self.eval(
+            self.val_dl, epoch + 1
+        )
+        log_data = {
+            "test/best test map": best_test_map,
+            "val/loss": val_loss,
+            "val/map": val_map,
+            "val/map@50": val_map50,
+        }
+
+        tqdm.write("\t--- Per-class mAP@50 ---")
+        class_names = self.val_dl.dataset.labels
+        map_50_per_class = val_map_50_per_class.cpu()
+        for i, name in enumerate(class_names):
+            if i < len(map_50_per_class):
+                log_data[f"val/map_50/{name}"] = map_50_per_class[i].item()
+
+        tqdm.write(
+            f"\tVal  --- Loss: {val_loss:.4f}, mAP50-95: {val_map:.4f}, mAP@50 : {val_map50:.4f}"
+        )
+        return log_data
