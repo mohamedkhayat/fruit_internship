@@ -15,6 +15,9 @@ from .general import unnormalize
 
 
 def initwandb(cfg):
+    if cfg.info:
+        info = str(input("any additional info ?"))
+        run.summary["INFO"] = info
     name = get_run_name(cfg)
     run = wandb.init(
         entity="mohamedkhayat025-none",
