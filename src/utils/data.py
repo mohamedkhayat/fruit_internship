@@ -81,7 +81,7 @@ def make_datasets(cfg):
 
     print("making datasets")
     data_dir = os.path.join(get_original_cwd(), "data", cfg.root_dir)
-    
+
     train_ds = DET_DS(
         data_dir,
         "train",
@@ -146,9 +146,7 @@ def make_dataloaders(
         train_ds,
         batch_size=cfg.step_batch_size,
         sampler=sampler,
-        num_workers=cfg.num_workers
-        if "num_workers" in cfg
-        else max(1, os.cpu_count() - 1),
+        num_workers=cfg.num_workers,
         persistent_workers=True,
         pin_memory=True,
         drop_last=True,
@@ -160,9 +158,7 @@ def make_dataloaders(
     test_dl = DataLoader(
         test_ds,
         batch_size=cfg.step_batch_size,
-        num_workers=cfg.num_workers
-        if "num_workers" in cfg
-        else max(1, os.cpu_count() - 1),
+        num_workers=cfg.num_workers,
         persistent_workers=True,
         pin_memory=True,
         worker_init_fn=worker_init,
@@ -173,9 +169,7 @@ def make_dataloaders(
     val_dl = DataLoader(
         val_ds,
         batch_size=cfg.step_batch_size,
-        num_workers=cfg.num_workers
-        if "num_workers" in cfg
-        else max(1, os.cpu_count() - 1),
+        num_workers=cfg.num_workers,
         persistent_workers=True,
         pin_memory=True,
         worker_init_fn=worker_init,
