@@ -5,10 +5,10 @@ from torch.amp import GradScaler
 from tqdm import tqdm
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
 
-from utils.logging import log_checkpoint_artifact
+from utils.logging import log_checkpoint_artifact,log_detection_confusion_matrix
 from .early_stop import EarlyStopping
 from torch.optim.lr_scheduler import CosineAnnealingLR, SequentialLR, LinearLR
-
+from .metrics import ConfusionMatrix
 
 class Trainer:
     def __init__(
@@ -170,7 +170,7 @@ class Trainer:
         return loss
 
     @torch.no_grad()
-    def eval(self, test_dl, current_epoch):
+    def eval(self, test_dl, current_epoch,calc_cm=False):
         self.model.eval()
         metric = MeanAveragePrecision(
             box_format="xyxy",
@@ -181,7 +181,11 @@ class Trainer:
         )
         metric.warn_on_many_detections = False
         loss = 0.0
-
+        if calc_cm:
+            cm = ConfusionMatrix(nc=len(test_dl.dataset.labels), conf=0.25, iou_thres=0.45)
+        else:
+            cm = None
+        
         device_str = str(self.device).split(":")[0]
 
         progress_bar = tqdm(
@@ -213,14 +217,38 @@ class Trainer:
             preds = self.processor.post_process_object_detection(
                 out, threshold=0.001, target_sizes=sizes
             )
-            for p in preds:
+
+            preds = self.nested_to_cpu(preds)
+            targets_for_map = self.format_targets_for_map(y)
+            preds_for_map = [p.copy() for p in preds]
+            for p in preds_for_map:
                 topk = p["scores"].argsort(descending=True)[:300]
                 for k in ("boxes", "scores", "labels"):
                     p[k] = p[k][topk]
 
-            preds = self.nested_to_cpu(preds)
-            y = self.format_targets_for_map(y)
-            metric.update(preds, y)
+            metric.update(preds_for_map, targets_for_map)
+
+
+            if calc_cm:
+                for i in range(len(preds)):
+                    pred_item = preds[i]
+                    gt_item = targets_for_map[i]
+                    
+                    detections = torch.cat([
+                        pred_item['boxes'],
+                        pred_item['scores'].unsqueeze(1),
+                        pred_item['labels'].unsqueeze(1).float()
+                    ], dim=1)
+                    
+                    gt_boxes = gt_item['boxes']
+                    gt_labels = gt_item['labels']
+
+                    if gt_boxes.numel() > 0:
+                        labels = torch.cat([gt_labels.unsqueeze(1).float(), gt_boxes], dim=1)
+                    else:
+                        labels = torch.zeros((0, 5))
+                    
+                    cm.process_batch(detections, labels)
 
         stats = metric.compute()
         metric.reset()
@@ -247,7 +275,7 @@ class Trainer:
                     f"\t\t{class_name:<15}: {test_map_50_per_class[i].item():.4f}"
                 )
 
-        return loss, test_map, test_map50, test_map_50_per_class
+        return loss, test_map, test_map50, test_map_50_per_class, cm
 
     def fit(self):
         epoch_pbar = tqdm(total=self.cfg.epochs, desc="Epochs", position=0, leave=True)
@@ -266,7 +294,7 @@ class Trainer:
                 epoch + 1,
             )
 
-            test_loss, test_map, test_map50, test_map_per_class = self.eval(
+            test_loss, test_map, test_map50, test_map_per_class, _ = self.eval(
                 self.test_dl, epoch + 1
             )
 
@@ -346,8 +374,8 @@ class Trainer:
     def get_val_log_data(self, epoch, best_test_map):
         self.model = self.early_stopping.get_best_model(self.model)
 
-        val_loss, val_map, val_map50, val_map_50_per_class = self.eval(
-            self.val_dl, epoch + 1
+        val_loss, val_map, val_map50, val_map_50_per_class, cm = self.eval(
+            self.val_dl, epoch + 1, calc_cm=True
         )
         log_data = {
             "test/best test map": best_test_map,
@@ -366,4 +394,5 @@ class Trainer:
         tqdm.write(
             f"\tVal  --- Loss: {val_loss:.4f}, mAP50-95: {val_map:.4f}, mAP@50 : {val_map50:.4f}"
         )
+        log_detection_confusion_matrix(self.run, cm, list(self.val_dl.dataset.labels))
         return log_data
