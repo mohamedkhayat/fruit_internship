@@ -214,3 +214,13 @@ def log_checkpoint_artifact(run, path, name, epoch, wait=False):
     run.log_artifact(artifact)
     if wait:
         artifact.wait()
+
+def log_detection_confusion_matrix(run, cm_object, class_names):
+    if not run:
+        return
+    
+    names = class_names.copy()
+    
+    fig = cm_object.plot(class_names=names)
+    run.log({"val/confusion_matrix": wandb.Image(fig)})
+    plt.close(fig)
