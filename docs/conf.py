@@ -38,6 +38,7 @@ autodoc_mock_imports = [
     "torchvision",
     "yaml",
     "kaggle",
+    "torchmetrics",
 ]
 
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[2]  # two levels up
