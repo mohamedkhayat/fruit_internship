@@ -20,8 +20,23 @@ release = "0.0.1"
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
+    "sphinx.ext.viewcode",
     "sphinx_autodoc_typehints",
+    "autoapi.extension",
 ]
+autoapi_type = "python"
+autoapi_dirs = ["../src"]
+autoapi_file_patterns = ["*.py"]
+autoapi_options = [
+    "members",
+    "undoc-members",
+    "private-members",
+    "show-inheritance",
+    "show-module-summary",
+    "special-members",
+    "imported-members",
+]
+autoapi_keep_files = True
 
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
