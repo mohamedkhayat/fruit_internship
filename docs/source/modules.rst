@@ -1,7 +1,7 @@
-src
-===
+fruit_project
+=============
 
 .. toctree::
    :maxdepth: 4
 
-   src
+   fruit_project

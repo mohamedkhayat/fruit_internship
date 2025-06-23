@@ -1,5 +1,5 @@
-src package
-===========
+fruit\_project package
+======================
 
 Subpackages
 -----------
@@ -7,16 +7,16 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   src.models
-   src.utils
+   fruit_project.models
+   fruit_project.utils
 
 Submodules
 ----------
 
-src.main module
----------------
+fruit\_project.main module
+--------------------------
 
-.. automodule:: src.main
+.. automodule:: fruit_project.main
    :members:
    :undoc-members:
    :show-inheritance:
@@ -24,7 +24,7 @@ src.main module
 Module contents
 ---------------
 
-.. automodule:: src
+.. automodule:: fruit_project
    :members:
    :undoc-members:
    :show-inheritance:
