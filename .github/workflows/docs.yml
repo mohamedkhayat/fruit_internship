@@ -27,7 +27,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt 
-          pip install sphinx sphinx-autodoc-typehints furo
+          pip install sphinx sphinx-autodoc-typehints sphinx-autoapi furo
 
       - name: Generate API stubs
         run: |
