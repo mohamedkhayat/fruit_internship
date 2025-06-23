@@ -31,6 +31,12 @@ autodoc_mock_imports = [
     "albumentations",
     "numpy",
     "matplotlib",
+    "cv2",
+    "hydra",
+    "tqdm",
+    "transformers",
+    "pandas",
+    "seaborn",
 ]
 
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[2]  # two levels up
