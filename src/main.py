@@ -1,18 +1,18 @@
 import glob
 from omegaconf import DictConfig
 import hydra
-from utils.data import make_datasets, make_dataloaders
-from models.model_factory import get_model
+from .utils.data import make_datasets, make_dataloaders
+from .models.model_factory import get_model
 import torch
 import cv2
-from utils.trainer import Trainer
-from utils.logging import (
+from .utils.trainer import Trainer
+from .utils.logging import (
     initwandb,
     get_run_name,
     log_transforms,
     log_images,
 )
-from utils.general import set_seed
+from .utils.general import set_seed
 
 cv2.setNumThreads(0)
 

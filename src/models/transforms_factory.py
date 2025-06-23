@@ -11,16 +11,8 @@ def get_transforms(cfg: DictConfig):
     Generates a dictionary of Albumentations transformations for training and testing.
     Args:
         cfg (DictConfig): Configuration object containing the following attributes:
-            - model.input_size (int): Input size for the model.
-            - aug (str): Augmentation type, either "hard" or "safe".
-            - min_viz (float): Minimum visibility threshold for bounding boxes.
-            - min_area (float): Minimum area threshold for bounding boxes.
-            - min_width (float): Minimum width threshold for bounding boxes.
-            - min_height (float): Minimum height threshold for bounding boxes.
     Returns:
-        dict: A dictionary with keys "train" and "test", where:
-            - "train" contains the training transformations based on the augmentation type.
-            - "test" contains the testing transformations for resizing and padding.
+        dict: A dictionary with keys "train" and "test"
     """
 
     hard_train_transforms = A.Compose(
