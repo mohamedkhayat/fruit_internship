@@ -38,7 +38,8 @@ jobs:
         run: |
           cd docs
           make html
-
+      - name: Configure Pages
+        uses: actions/configure-pages@v3
       - id: deployment
         name: Deploy to GitHub Pages
         uses: sphinx-notes/pages@v3

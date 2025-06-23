@@ -25,17 +25,7 @@ extensions = [
 
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
-autodoc_mock_imports = [
-    "matplotlib",
-    "cv2",
-    "hydra",
-    "tqdm",
-    "pandas",
-    "seaborn",
-    "torchvision",
-    "yaml",
-    "kaggle",
-]
+
 
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[2]  # two levels up
 sys.path.insert(0, str(PROJECT_ROOT))
