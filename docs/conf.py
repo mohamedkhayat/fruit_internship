@@ -26,19 +26,15 @@ extensions = [
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 autodoc_mock_imports = [
-    "torch",
     "matplotlib",
     "cv2",
     "hydra",
     "tqdm",
-    "transformers",
     "pandas",
     "seaborn",
-    "wandb",
     "torchvision",
     "yaml",
     "kaggle",
-    "torchmetrics",
 ]
 
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[2]  # two levels up
