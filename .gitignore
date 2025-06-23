@@ -208,3 +208,7 @@ outputs
 
 
 .vscode
+
+/docs/build/
+_build/
+*.pickle
