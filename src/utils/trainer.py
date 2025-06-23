@@ -1,19 +1,49 @@
 import os
+from typing import List, Tuple, Optional, Dict, Any
 import numpy as np
 import torch
 from torch.amp import GradScaler
 from tqdm import tqdm
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
-
-from utils.logging import log_checkpoint_artifact,log_detection_confusion_matrix
+from omegaconf import DictConfig
+from utils.logging import log_checkpoint_artifact, log_detection_confusion_matrix
 from .early_stop import EarlyStopping
 from torch.optim.lr_scheduler import CosineAnnealingLR, SequentialLR, LinearLR
 from .metrics import ConfusionMatrix
+from transformers import AutoImageProcessor, BatchEncoding
+import torch.nn as nn
+from wandb.sdk.wandb_run import Run
+from torch.utils.data import DataLoader
+from torch.optim import AdamW
+
 
 class Trainer:
     def __init__(
-        self, model, processor, device, cfg, name, run, train_dl, test_dl, val_dl
+        self,
+        model: nn.Module,
+        processor: AutoImageProcessor,
+        device: torch.device,
+        cfg: DictConfig,
+        name: str,
+        run: Run,
+        train_dl: DataLoader,
+        test_dl: DataLoader,
+        val_dl: DataLoader,
     ):
+        """
+        Initializes the Trainer object.
+
+        Args:
+            model (nn.Module): The model to train.
+            processor (AutoImageProcessor): The processor for preprocessing data.
+            device (torch.device): The device to run training on.
+            cfg (DictConfig): The configuration object.
+            name (str): The name of the training run.
+            run (Run): The wandb run object.
+            train_dl (DataLoader): The training dataloader.
+            test_dl (DataLoader): The testing dataloader.
+            val_dl (DataLoader): The validation dataloader.
+        """
         self.model = model
         self.device = device
         self.scaler = GradScaler("cuda")
@@ -33,10 +63,16 @@ class Trainer:
         self.accum_steps = self.cfg.effective_batch_size // self.cfg.step_batch_size
         assert self.cfg.effective_batch_size % self.cfg.step_batch_size == 0, (
             f"effective_batch_size ({self.cfg.effective_batch_size}) must be divisible by batch_size "
-            f"({self.step_batch_size})."
+            f"({self.accum_steps})."
         )
 
-    def get_scheduler(self):
+    def get_scheduler(self) -> SequentialLR:
+        """
+        Creates a learning rate scheduler with a warmup phase.
+
+        Returns:
+            SequentialLR: The learning rate scheduler.
+        """
         warmup_scheduler = LinearLR(
             self.optimizer, start_factor=0.1, total_iters=self.cfg.warmup_epochs
         )
@@ -52,7 +88,13 @@ class Trainer:
         )
         return scheduler
 
-    def get_optimizer(self):
+    def get_optimizer(self) -> AdamW:
+        """
+        Creates an AdamW optimizer with different learning rates for backbone and other parameters.
+
+        Returns:
+            AdamW: The optimizer.
+        """
         param_dicts = [
             {
                 "params": [
@@ -71,18 +113,36 @@ class Trainer:
             },
         ]
 
-        optimizer = torch.optim.AdamW(
+        optimizer = AdamW(
             param_dicts, lr=self.cfg.lr, weight_decay=self.cfg.weight_decay
         )
         return optimizer
 
-    def move_labels_to_device(self, batch):
+    def move_labels_to_device(self, batch: BatchEncoding) -> BatchEncoding:
+        """
+        Moves label tensors within a batch to the specified device.
+
+        Args:
+            batch (BatchEncoding): The batch containing labels.
+
+        Returns:
+            BatchEncoding: The batch with labels moved to the device.
+        """
         for lab in batch["labels"]:
             for k, v in lab.items():
                 lab[k] = v.to(self.device)
         return batch
 
-    def nested_to_cpu(self, obj):
+    def nested_to_cpu(self, obj: Any) -> Any:
+        """
+        Recursively moves tensors in a nested structure (dict, list, tuple) to CPU.
+
+        Args:
+            obj: The object containing tensors to move.
+
+        Returns:
+            The object with all tensors moved to CPU.
+        """
         if torch.is_tensor(obj):
             return obj.cpu()
         if isinstance(obj, dict):
@@ -91,7 +151,16 @@ class Trainer:
             return [self.nested_to_cpu(v) for v in obj]
         return obj
 
-    def format_targets_for_map(self, y):
+    def format_targets_for_map(self, y: List) -> List:
+        """
+        Formats target annotations for MeanAveragePrecision metric calculation.
+
+        Args:
+            y (List): A list of target dictionaries.
+
+        Returns:
+            List: A list of formatted target dictionaries for the metric.
+        """
         y_metric_format = []
         for target_dict in y:
             annotations = target_dict["annotations"]
@@ -119,8 +188,17 @@ class Trainer:
 
     def train(
         self,
-        current_epoch,
-    ):
+        current_epoch: int,
+    ) -> float:
+        """
+        Performs one epoch of training.
+
+        Args:
+            current_epoch (int): The current epoch number.
+
+        Returns:
+            float: The average training loss for the epoch.
+        """
         self.model.train()
         self.optimizer.zero_grad(set_to_none=True)
 
@@ -170,7 +248,25 @@ class Trainer:
         return loss
 
     @torch.no_grad()
-    def eval(self, test_dl, current_epoch,calc_cm=False):
+    def eval(
+        self, test_dl: DataLoader, current_epoch: int, calc_cm: bool = False
+    ) -> Tuple[float, float, float, torch.Tensor, Optional[ConfusionMatrix]]:
+        """
+        Evaluates the model on a given dataloader.
+
+        Args:
+            test_dl (DataLoader): The dataloader for evaluation.
+            current_epoch (int): The current epoch number.
+            calc_cm (bool, optional): Whether to calculate and return a confusion matrix. Defaults to False.
+
+        Returns:
+            tuple: A tuple containing:
+                - loss (float): The average evaluation loss.
+                - test_map (float): The mAP@.5-.95.
+                - test_map50 (float): The mAP@.50.
+                - test_map_50_per_class (torch.Tensor): The mAP@.50 for each class.
+                - cm (ConfusionMatrix | None): The confusion matrix if calc_cm is True, else None.
+        """
         self.model.eval()
         metric = MeanAveragePrecision(
             box_format="xyxy",
@@ -182,10 +278,12 @@ class Trainer:
         metric.warn_on_many_detections = False
         loss = 0.0
         if calc_cm:
-            cm = ConfusionMatrix(nc=len(test_dl.dataset.labels), conf=0.25, iou_thres=0.45)
+            cm = ConfusionMatrix(
+                nc=len(test_dl.dataset.labels), conf=0.25, iou_thres=0.45
+            )
         else:
             cm = None
-        
+
         device_str = str(self.device).split(":")[0]
 
         progress_bar = tqdm(
@@ -228,26 +326,30 @@ class Trainer:
 
             metric.update(preds_for_map, targets_for_map)
 
-
             if calc_cm:
                 for i in range(len(preds)):
                     pred_item = preds[i]
                     gt_item = targets_for_map[i]
-                    
-                    detections = torch.cat([
-                        pred_item['boxes'],
-                        pred_item['scores'].unsqueeze(1),
-                        pred_item['labels'].unsqueeze(1).float()
-                    ], dim=1)
-                    
-                    gt_boxes = gt_item['boxes']
-                    gt_labels = gt_item['labels']
+
+                    detections = torch.cat(
+                        [
+                            pred_item["boxes"],
+                            pred_item["scores"].unsqueeze(1),
+                            pred_item["labels"].unsqueeze(1).float(),
+                        ],
+                        dim=1,
+                    )
+
+                    gt_boxes = gt_item["boxes"]
+                    gt_labels = gt_item["labels"]
 
                     if gt_boxes.numel() > 0:
-                        labels = torch.cat([gt_labels.unsqueeze(1).float(), gt_boxes], dim=1)
+                        labels = torch.cat(
+                            [gt_labels.unsqueeze(1).float(), gt_boxes], dim=1
+                        )
                     else:
                         labels = torch.zeros((0, 5))
-                    
+
                     cm.process_batch(detections, labels)
 
         stats = metric.compute()
@@ -277,7 +379,10 @@ class Trainer:
 
         return loss, test_map, test_map50, test_map_50_per_class, cm
 
-    def fit(self):
+    def fit(self) -> None:
+        """
+        Runs the main training loop for the specified number of epochs.
+        """
         epoch_pbar = tqdm(total=self.cfg.epochs, desc="Epochs", position=0, leave=True)
 
         best_test_map = 0
@@ -328,7 +433,16 @@ class Trainer:
 
         epoch_pbar.close()
 
-    def _save_checkpoint(self, epoch):
+    def _save_checkpoint(self, epoch: int) -> str:
+        """
+        Saves a checkpoint of the model, optimizer, scheduler, and scaler states.
+
+        Args:
+            epoch (int): The current epoch number.
+
+        Returns:
+            str: The path to the saved checkpoint file.
+        """
         tqdm.write("saving checkpoint")
         ckpt = {
             "epoch": epoch,
@@ -342,7 +456,13 @@ class Trainer:
         tqdm.write("done saving checkpoint")
         return path
 
-    def _load_checkpoint(self, path):
+    def _load_checkpoint(self, path: str) -> None:
+        """
+        Loads a checkpoint and restores the state of the model, optimizer, scheduler, and scaler.
+
+        Args:
+            path (str): The path to the checkpoint file.
+        """
         tqdm.write("loading checkpoint")
         ckpt = torch.load(path, map_location=self.device)
         self.model.load_state_dict(ckpt["model"])
@@ -352,8 +472,28 @@ class Trainer:
         self.start_epoch = ckpt["epoch"] + 1
 
     def get_epoch_log_data(
-        self, epoch, train_loss, test_map, test_map50, test_loss, test_map_per_class
-    ):
+        self,
+        epoch: int,
+        train_loss: float,
+        test_map: float,
+        test_map50: float,
+        test_loss: float,
+        test_map_per_class: torch.Tensor,
+    ) -> Dict[str, Any]:
+        """
+        Constructs a dictionary of metrics for logging at the end of an epoch.
+
+        Args:
+            epoch (int): The current epoch number.
+            train_loss (float): The training loss.
+            test_map (float): The test mAP@.5-.95.
+            test_map50 (float): The test mAP@.50.
+            test_loss (float): The test loss.
+            test_map_per_class (torch.Tensor): The test mAP@.50 for each class.
+
+        Returns:
+            dict: A dictionary of metrics for logging.
+        """
         log_data = {
             "epoch": epoch,
             "train/loss": train_loss,
@@ -371,7 +511,17 @@ class Trainer:
 
         return log_data
 
-    def get_val_log_data(self, epoch, best_test_map):
+    def get_val_log_data(self, epoch: int, best_test_map: float) -> Dict[str, Any]:
+        """
+        Performs final validation, logs metrics, and returns the log data.
+
+        Args:
+            epoch (int): The final epoch number.
+            best_test_map (float): The best test mAP@.50 achieved during training.
+
+        Returns:
+            dict: A dictionary of validation metrics for logging.
+        """
         self.model = self.early_stopping.get_best_model(self.model)
 
         val_loss, val_map, val_map50, val_map_50_per_class, cm = self.eval(

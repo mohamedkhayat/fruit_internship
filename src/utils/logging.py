@@ -2,9 +2,7 @@ from collections import Counter
 from omegaconf import OmegaConf
 import pandas as pd
 import torch.nn as nn
-from datetime import datetime
 import wandb
-from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
 import seaborn as sns
 import time
@@ -12,12 +10,22 @@ import torch
 from torchvision.utils import draw_bounding_boxes
 from torchvision.transforms.functional import to_pil_image
 from .general import unnormalize
+from omegaconf import DictConfig
+from wandb.sdk.wandb_run import Run
+from typing import Dict, Tuple, List, Optional
+from .metrics import ConfusionMatrix
 
 
-def initwandb(cfg):
-    if cfg.info:
-        info = str(input("any additional info ?"))
-        run.summary["INFO"] = info
+def initwandb(cfg: DictConfig) -> Run:
+    """
+    Initializes a wandb run.
+
+    Args:
+        cfg (DictConfig): Configuration object.
+
+    Returns:
+        Run: The wandb run object.
+    """
     name = get_run_name(cfg)
     run = wandb.init(
         entity="mohamedkhayat025-none",
@@ -25,6 +33,9 @@ def initwandb(cfg):
         name=name,
         config=OmegaConf.to_container(cfg, resolve=True),
     )
+    if cfg.info:
+        info = str(input("any additional info ?"))
+        run.summary["INFO"] = info
     run.define_metric("epoch")
     run.define_metric("train/*", step_metric="epoch")
     run.define_metric("test/*", step_metric="epoch")
@@ -33,12 +44,39 @@ def initwandb(cfg):
     return run
 
 
-def get_run_name(cfg):
+def get_run_name(cfg: DictConfig) -> str:
+    """
+    Generates a run name based on the configuration.
+
+    Args:
+        cfg (DictConfig): Configuration object.
+
+    Returns:
+        str: The generated run name.
+    """
     name = f"model={cfg.model.name}_lr={cfg.lr}"
     return name
 
 
-def log_images(run, batch, id2lbl, grid_size=(3, 3), mean=None, std=None):
+def log_images(
+    run: Run,
+    batch: Tuple[Dict, List],
+    id2lbl: Dict,
+    grid_size: Tuple[int, int] = (3, 3),
+    mean: Optional[torch.Tensor] = None,
+    std: Optional[torch.Tensor] = None,
+) -> None:
+    """
+    Logs a grid of images with their bounding boxes to wandb.
+
+    Args:
+        run (Run): The wandb run object.
+        batch (Tuple[Dict, List]): A single batch of data (processed_batch, targets).
+        id2lbl (Dict): A dictionary mapping class IDs to labels.
+        grid_size (Tuple[int, int], optional): The grid size for displaying images. Defaults to (3, 3).
+        mean (Optional[torch.Tensor], optional): The mean used for normalization. Defaults to None.
+        std (Optional[torch.Tensor], optional): The standard deviation used for normalization. Defaults to None.
+    """
     processed_batch, targets = batch
     images = processed_batch["pixel_values"].detach().clone()
     n_rows, n_cols = grid_size
@@ -79,14 +117,34 @@ def log_images(run, batch, id2lbl, grid_size=(3, 3), mean=None, std=None):
     plt.tight_layout()
 
     if run:
-        run.log({f"Pre transform examples": wandb.Image(fig)})
+        run.log({"Pre transform examples": wandb.Image(fig)})
     else:
         plt.show()
 
     plt.close(fig)
 
 
-def log_transforms(run, batch, grid_size, id2lbl, transforms, mean=None, std=None):
+def log_transforms(
+    run: Run,
+    batch: Tuple[Dict, List],
+    grid_size: Tuple[int, int] = (3, 3),
+    id2lbl: Optional[Dict] = None,
+    transforms: Optional[Dict] = None,
+    mean: Optional[torch.Tensor] = None,
+    std: Optional[torch.Tensor] = None,
+) -> None:
+    """
+    Logs a grid of transformed images with their bounding boxes to wandb.
+
+    Args:
+        run (Run): The wandb run object.
+        batch (Tuple[Dict, List]): A single batch of data (processed_batch, targets).
+        grid_size (Tuple[int, int], optional): The grid size for displaying images. Defaults to (3, 3).
+        id2lbl (Optional[Dict], optional): A dictionary mapping class IDs to labels. Defaults to None.
+        transforms (Optional[Dict], optional): The transforms applied. Defaults to None.
+        mean (Optional[torch.Tensor], optional): The mean used for normalization. Defaults to None.
+        std (Optional[torch.Tensor], optional): The standard deviation used for normalization. Defaults to None.
+    """
     processed_batch, targets = batch
     images = processed_batch["pixel_values"].detach().clone()
     n_rows, n_cols = grid_size
@@ -127,48 +185,35 @@ def log_transforms(run, batch, grid_size, id2lbl, transforms, mean=None, std=Non
     plt.tight_layout()
 
     if run:
-        run.log({f"Post transform examples": wandb.Image(fig)})
-        run.log({f"transforms": transforms})
+        run.log({"Post transform examples": wandb.Image(fig)})
+        run.log({"transforms": transforms})
     else:
         plt.show()
 
     plt.close(fig)
 
 
-def log_confusion_matrix(run, y_true, y_pred, classes, normalize=True):
-    cm = confusion_matrix(y_true, y_pred)
-    fmt_string = "d"
-    if normalize:
-        row_sums = cm.sum(axis=1, keepdims=True)
-        cm = cm.astype(float) / row_sums
-        fmt_string = ".2f"
+def log_training_time(run: Run, start_time: float) -> None:
+    """
+    Logs the elapsed training time.
 
-    fig, ax = plt.subplots(figsize=(10, 10))
-    sns.heatmap(
-        cm,
-        annot=True,
-        fmt=fmt_string,
-        cmap="Blues",
-        xticklabels=classes,
-        yticklabels=classes,
-        ax=ax,
-    )
-    ax.set_title("Confusion Matrix")
-    ax.set_xlabel("Predicted Labels")
-    ax.set_ylabel("True Labels")
-    plt.tight_layout()
-
-    run.log({"confusion_matrix": wandb.Image(fig)})
-    plt.close(fig)
-
-
-def log_training_time(run, start_time):
+    Args:
+        run (Run): The wandb run object.
+        start_time (float): The start time of training.
+    """
     end_time = time.time()
     elapsed = end_time - start_time
     run.log({"training time ": elapsed})
 
 
-def log_model_params(run, model: nn.Module):
+def log_model_params(run: Run, model: nn.Module) -> None:
+    """
+    Logs the total and trainable parameters of a model.
+
+    Args:
+        run (Run): The wandb run object.
+        model (nn.Module): The model.
+    """
     total_params = sum(param.numel() for param in model.parameters())
     trainable_params = sum(
         param.numel() for param in model.parameters() if param.requires_grad
@@ -177,7 +222,17 @@ def log_model_params(run, model: nn.Module):
     run.log({"total params": total_params, "trainable params": trainable_params})
 
 
-def log_class_value_counts(run, samples, stage="Train"):
+def log_class_value_counts(
+    run: Run, samples: List[Tuple[str, str]], stage: str = "Train"
+) -> None:
+    """
+    Logs the class distribution of a dataset.
+
+    Args:
+        run (Run): The wandb run object.
+        samples (List[Tuple[Any, Any]]): A list of samples (e.g., [(image, label), ...]).
+        stage (str, optional): The dataset stage (e.g., 'Train', 'Test'). Defaults to "Train".
+    """
     all_labels = [label for _, label in samples]
 
     fruit_counts = Counter(all_labels)
@@ -204,7 +259,19 @@ def log_class_value_counts(run, samples, stage="Train"):
     plt.close(fig)
 
 
-def log_checkpoint_artifact(run, path, name, epoch, wait=False):
+def log_checkpoint_artifact(
+    run: Run, path: str, name: str, epoch: int, wait: bool = False
+) -> None:
+    """
+    Logs a model checkpoint as a wandb artifact.
+
+    Args:
+        run (Run): The wandb run object.
+        path (str): The path to the checkpoint file.
+        name (str): The name of the artifact.
+        epoch (int): The epoch number.
+        wait (bool, optional): Whether to wait for the artifact to be uploaded. Defaults to False.
+    """
     artifact = wandb.Artifact(
         name=f"{name}-checkpoint",
         type="model-checkpoint",
@@ -215,12 +282,23 @@ def log_checkpoint_artifact(run, path, name, epoch, wait=False):
     if wait:
         artifact.wait()
 
-def log_detection_confusion_matrix(run, cm_object, class_names):
+
+def log_detection_confusion_matrix(
+    run: Run, cm_object: ConfusionMatrix, class_names: List[str]
+) -> None:
+    """
+    Logs a detection confusion matrix plot to wandb.
+
+    Args:
+        run (Run): The wandb run object.
+        cm_object (ConfusionMatrix): The confusion matrix object.
+        class_names (List[str]): The list of class names.
+    """
     if not run:
         return
-    
+
     names = class_names.copy()
-    
+
     fig = cm_object.plot(class_names=names)
     run.log({"val/confusion_matrix": wandb.Image(fig)})
     plt.close(fig)

@@ -1,0 +1,16 @@
+[tool.mypy]
+ignore_missing_imports = true
+
+# per-module behavior
+[[tool.mypy.overrides]]
+module = "torch.*"
+follow_imports = "skip"
+follow_imports_for_stubs = true
+
+[[tool.mypy.overrides]]
+module = "omegaconf.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "hydra.*"
+ignore_missing_imports = true

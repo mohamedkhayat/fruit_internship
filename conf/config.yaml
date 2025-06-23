@@ -26,3 +26,4 @@ min_viz : 0.4
 min_width : 14
 min_height : 14
 aug : hard
+sample_strat : mean

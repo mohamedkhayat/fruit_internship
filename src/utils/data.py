@@ -1,6 +1,5 @@
 import functools
-import pathlib
-import re
+import numpy as np
 from .datasets.det_dataset import DET_DS
 from torch.utils.data import DataLoader, WeightedRandomSampler
 from omegaconf import DictConfig
@@ -10,6 +9,9 @@ from collections import Counter
 import torch
 from hydra.utils import get_original_cwd
 import resource  # <-- Import the resource module
+from albumentations import Compose
+from typing import Dict, List, Tuple
+from transformers import AutoImageProcessor, BatchEncoding
 
 # Increase the number of open file descriptors
 try:
@@ -20,22 +22,16 @@ except (ValueError, OSError) as e:
     print(f"Could not set RLIMIT_NOFILE: {e}")
 
 
-ACCEPTED_LABELS = [
-    "apple",
-    "cherry",
-    "fig",
-    "olive",
-    "pomegranate",
-    "orange",
-    "watermelon",
-    "strawberry",
-    "potato",
-    "tomato",
-    "pepper",
-]
-
-
 def download_dataset():
+    """
+    Downloads the dataset from Kaggle using the Kaggle API.
+
+    Raises:
+        RuntimeError: If the required environment variables for Kaggle API are not set.
+
+    Returns:
+        None
+    """
     username = os.getenv("KAGGLE_USERNAME")
     api_key = os.getenv("KAGGLE_KEY")
     if api_key is None or username is None:
@@ -55,27 +51,16 @@ def download_dataset():
     )
 
 
-def get_samples(root_dir: str, folder: str, debug=False):
-    print(f"extracting {folder} samples")
-    samples = []
-    labels = []
+def make_datasets(cfg: DictConfig) -> Tuple[DET_DS, DET_DS, DET_DS]:
+    """
+    Creates training, testing, and validation datasets.
 
-    imgs_folder = pathlib.Path(root_dir, folder)
+    Args:
+        cfg (DictConfig): Configuration object containing dataset parameters.
 
-    image_extensions = {".jpg", ".jpeg", ".png", ".bmp"}
-
-    for img_path in imgs_folder.glob("**/*.jpg"):
-        if img_path.is_file() and img_path.suffix.lower() in image_extensions:
-            label = img_path.parent.name
-            clean_label = re.sub(r"\s+\d+$", "", label).split()[0].lower()
-            if clean_label in ACCEPTED_LABELS:
-                labels.append(clean_label)
-                samples.append((str(img_path), clean_label))
-    labels = list(set(labels))
-    return samples, labels
-
-
-def make_datasets(cfg):
+    Returns:
+        Tuple[DET_DS, DET_DS, DET_DS]: The training, testing, and validation datasets.
+    """
     if cfg.download_data:
         download_dataset()
 
@@ -113,7 +98,17 @@ def make_datasets(cfg):
     return train_ds, test_ds, val_ds
 
 
-def get_sampler(train_ds):
+def get_sampler(train_ds: DET_DS, strat: str) -> WeightedRandomSampler:
+    """
+    Creates a WeightedRandomSampler for the training dataset.
+
+    Args:
+        train_ds (DET_DS): The training dataset.
+        strat (str): The strategy for weighting ('max' or 'mean').
+
+    Returns:
+        WeightedRandomSampler: A sampler for the training dataset.
+    """
     class_counts = Counter()
     for _, target in train_ds:
         classes = {ann["category_id"] for ann in target["annotations"]}
@@ -124,7 +119,10 @@ def get_sampler(train_ds):
     weights = []
     for _, target in train_ds:
         classes = {ann["category_id"] for ann in target["annotations"]}
-        weights.append(max(class_weights[c] for c in classes))  # maybe try mean
+        if strat == "max":
+            weights.append(max(class_weights[c] for c in classes))  # maybe try mean
+        elif strat == "mean":
+            weights.append(np.mean([class_weights[c] for c in classes]))
 
     weights = torch.tensor(weights, dtype=torch.double)
     sampler = WeightedRandomSampler(weights, num_samples=len(weights), replacement=True)
@@ -133,14 +131,35 @@ def get_sampler(train_ds):
 
 
 def make_dataloaders(
-    cfg: DictConfig, train_ds, test_ds, val_ds, generator, processor, transforms
-):
+    cfg: DictConfig,
+    train_ds: DET_DS,
+    test_ds: DET_DS,
+    val_ds: DET_DS,
+    generator: torch.Generator,
+    processor: AutoImageProcessor,
+    transforms: Compose,
+) -> Tuple[DataLoader, DataLoader, DataLoader]:
+    """
+    Creates dataloaders for training, testing, and validation datasets.
+
+    Args:
+        cfg (DictConfig): Configuration object containing dataloader parameters.
+        train_ds (DET_DS): The training dataset.
+        test_ds (DET_DS): The testing dataset.
+        val_ds (DET_DS): The validation dataset.
+        generator (torch.Generator): A PyTorch generator for reproducibility.
+        processor (AutoImageProcessor): Processor for image preprocessing.
+        transforms (Compose): Transformations to apply to the datasets.
+
+    Returns:
+        Tuple[DataLoader, DataLoader, DataLoader]: The training, testing, and validation dataloaders.
+    """
     print("making dataloaders")
 
     worker_init = functools.partial(seed_worker, base_seed=cfg.seed)
     collate = functools.partial(collate_fn, processor=processor)
 
-    sampler = get_sampler(train_ds)
+    sampler = get_sampler(train_ds, cfg.sample_strat)
 
     train_dl = DataLoader(
         train_ds,
@@ -180,7 +199,22 @@ def make_dataloaders(
     return train_dl, test_dl, val_dl
 
 
-def get_labels_and_mappings(train_labels, test_labels):
+def get_labels_and_mappings(
+    train_labels: List, test_labels: List
+) -> Tuple[List, Dict, Dict]:
+    """
+    Generates labels and mappings for class IDs and names.
+
+    Args:
+        train_labels (List): List of labels from the training dataset.
+        test_labels (List): List of labels from the testing dataset.
+
+    Returns:
+        Tuple[List, Dict, Dict]: A tuple containing:
+            - labels (List): Sorted list of unique labels.
+            - id2lbl (Dict): Mapping from class IDs to labels.
+            - lbl2id (Dict): Mapping from labels to class IDs.
+    """
     labels = sorted(list(set(train_labels + test_labels)))
 
     id2lbl = {i: lbl for i, lbl in enumerate(labels)}
@@ -189,7 +223,19 @@ def get_labels_and_mappings(train_labels, test_labels):
     return labels, id2lbl, lbl2id
 
 
-def collate_fn(batch, processor):
+def collate_fn(
+    batch: BatchEncoding, processor: AutoImageProcessor
+) -> Tuple[BatchEncoding, List]:
+    """
+    Collates a batch of data for the dataloader.
+
+    Args:
+        batch (BatchEncoding): A batch of data containing images and targets.
+        processor (AutoImageProcessor): Processor for image preprocessing.
+
+    Returns:
+        Tuple[BatchEncoding, List]: Processed batch and list of targets.
+    """
     imgs, targets = list(zip(*batch))
     batch_processed = processor(
         images=imgs,
@@ -203,8 +249,20 @@ def collate_fn(batch, processor):
 
 
 def set_transforms(
-    train_dl: DataLoader, test_dl: DataLoader, val_dl: DataLoader, transforms
-):
+    train_dl: DataLoader, test_dl: DataLoader, val_dl: DataLoader, transforms: Compose
+) -> Tuple[DataLoader, DataLoader, DataLoader]:
+    """
+    Sets transformations for the datasets in the dataloaders.
+
+    Args:
+        train_dl (DataLoader): Training dataloader.
+        test_dl (DataLoader): Testing dataloader.
+        val_dl (DataLoader): Validation dataloader.
+        transforms (Compose): Transformations to apply.
+
+    Returns:
+        Tuple[DataLoader, DataLoader, DataLoader]: Updated dataloaders with transformations applied.
+    """
     train_dl.dataset.transforms = transforms["train"]
     test_dl.dataset.transforms = transforms["test"]
     val_dl.dataset.transforms = transforms["test"]
