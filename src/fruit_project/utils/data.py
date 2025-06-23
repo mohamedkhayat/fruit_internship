@@ -1,9 +1,9 @@
 import functools
 import numpy as np
-from .datasets.det_dataset import DET_DS
+from fruit_project.utils.datasets.det_dataset import DET_DS
 from torch.utils.data import DataLoader, WeightedRandomSampler
 from omegaconf import DictConfig
-from .general import seed_worker
+from fruit_project.utils.general import seed_worker
 import os
 from collections import Counter
 import torch

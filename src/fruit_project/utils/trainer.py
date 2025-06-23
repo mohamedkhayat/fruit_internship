@@ -6,10 +6,13 @@ from torch.amp import GradScaler
 from tqdm import tqdm
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
 from omegaconf import DictConfig
-from .logging import log_checkpoint_artifact, log_detection_confusion_matrix
-from .early_stop import EarlyStopping
+from fruit_project.utils.logging import (
+    log_checkpoint_artifact,
+    log_detection_confusion_matrix,
+)
+from fruit_project.utils.early_stop import EarlyStopping
 from torch.optim.lr_scheduler import CosineAnnealingLR, SequentialLR, LinearLR
-from .metrics import ConfusionMatrix
+from fruit_project.utils.metrics import ConfusionMatrix
 from transformers import AutoImageProcessor, BatchEncoding
 import torch.nn as nn
 from wandb.sdk.wandb_run import Run

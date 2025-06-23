@@ -6,7 +6,7 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-import pathlib
+import os
 import sys
 
 project = "Fruit Internship"
@@ -26,9 +26,7 @@ extensions = [
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
-
-PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[2]  # two levels up
-sys.path.insert(0, str(PROJECT_ROOT))
+sys.path.insert(0, os.path.abspath("../src"))
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output

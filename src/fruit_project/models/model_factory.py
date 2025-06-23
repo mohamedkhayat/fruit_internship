@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from .transforms_factory import get_transforms
+from fruit_project.models.transforms_factory import get_transforms
 from omegaconf import DictConfig
 from typing import Dict, List, Tuple
 from albumentations import Compose

@@ -9,11 +9,11 @@ import time
 import torch
 from torchvision.utils import draw_bounding_boxes
 from torchvision.transforms.functional import to_pil_image
-from .general import unnormalize
+from fruit_project.utils.general import unnormalize
 from omegaconf import DictConfig
 from wandb.sdk.wandb_run import Run
 from typing import Dict, Tuple, List, Optional
-from .metrics import ConfusionMatrix
+from fruit_project.utils.metrics import ConfusionMatrix
 
 
 def initwandb(cfg: DictConfig) -> Run:

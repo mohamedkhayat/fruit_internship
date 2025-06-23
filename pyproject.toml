@@ -1,13 +1,13 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "fruit-internship"
 version = "0.0.1"
-
-[tool.setuptools]
-packages = ["src"]
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["fruit_project*"]
 
 [tool.mypy]
 ignore_missing_imports = true
