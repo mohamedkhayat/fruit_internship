@@ -19,7 +19,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: 3.9
-
+      - name: Setup Project
+        run: pip install -e
       - name: Install dependencies
         run: |
           pip install sphinx sphinx-autodoc-typehints furo
