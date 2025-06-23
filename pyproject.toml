@@ -1,3 +1,14 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fruit-internship"
+version = "0.0.1"
+
+[tool.setuptools]
+packages = ["src"]
+
 [tool.mypy]
 ignore_missing_imports = true
 
