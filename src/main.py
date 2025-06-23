@@ -59,7 +59,7 @@ def main(cfg: DictConfig):
     if cfg.load_ckpt:
         existing = sorted(glob.glob("checkpoints/.pth"))
         if existing:
-            trainer._load_checkpoint()
+            trainer._load_checkpoint(existing[-1])
 
     trainer.fit()
 
