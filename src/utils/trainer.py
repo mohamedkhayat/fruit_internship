@@ -6,7 +6,7 @@ from torch.amp import GradScaler
 from tqdm import tqdm
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
 from omegaconf import DictConfig
-from utils.logging import log_checkpoint_artifact, log_detection_confusion_matrix
+from .logging import log_checkpoint_artifact, log_detection_confusion_matrix
 from .early_stop import EarlyStopping
 from torch.optim.lr_scheduler import CosineAnnealingLR, SequentialLR, LinearLR
 from .metrics import ConfusionMatrix
