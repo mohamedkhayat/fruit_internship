@@ -72,7 +72,7 @@ python src/fruit_project/main.py model=detrv2_50 lr=5e-5 aug=safe
 ### Dataset Setup
 
 * Data must be in YOLO format under `data/Fruits-detection/`
-* To auto-download from Kaggle, set `download_data: true` in `conf/config.yaml` and set the corresponding environement variables
+* To auto-download from Kaggle, set `download_data: true` in `conf/config.yaml` or `download_data=True` as an argument and set the corresponding environement variables
 
 ---
 
