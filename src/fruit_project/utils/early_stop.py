@@ -3,6 +3,7 @@ import pathlib
 from tqdm import tqdm
 from omegaconf import DictConfig
 from wandb.sdk.wandb_run import Run
+import wandb
 import torch.nn as nn
 from typing import List, Optional, Tuple
 from pathlib import Path
