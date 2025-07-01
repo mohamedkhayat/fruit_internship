@@ -119,6 +119,9 @@ def get_sampler(train_ds: DET_DS, strat: str) -> WeightedRandomSampler:
     weights = []
     for _, target in train_ds:
         classes = {ann["category_id"] for ann in target["annotations"]}
+        if not classes:
+            weights.append(min(class_weights.values()))
+            continue
         if strat == "max":
             weights.append(max(class_weights[c] for c in classes))  # maybe try mean
         elif strat == "mean":
