@@ -46,7 +46,7 @@ This project supports both a local and a Docker-based setup. Choose the one that
 First, clone the repository and navigate into the project directory:
 
 ```bash
-git clone https://github.com/mohamedkhayat0/fruit_internship.git
+git clone https://github.com/mohamedkhayat/fruit_internship.git
 cd fruit_internship
 ```
 
