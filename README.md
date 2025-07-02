@@ -39,19 +39,89 @@ mohamedkhayat-fruit_internship/
 
 ## Installation
 
+This project supports both a local and a Docker-based setup. Choose the one that best fits your needs.
+
+### 1. Local Setup (Without Docker)
+
+First, clone the repository and navigate into the project directory:
+
 ```bash
-# Clone the repository
 git clone https://github.com/mohamedkhayat0/fruit_internship.git
 cd fruit_internship
+```
 
-# (Optional) Create and activate a virtual environment
+It is highly recommended to use a virtual environment:
+```bash
 python -m venv venv
-source venv/bin/activate  # On Windows: .\venv\Scripts\activate
+# On Windows:
+.\venv\Scripts\activate
+# On macOS/Linux:
+source venv/bin/activate
+```
 
-# Install core dependencies
-pip install -e .
-pip install -r requirements.txt
-````
+#### For Users (Training & Inference)
+If you only want to use the project to train models or run inference, install the core package with the `torch` dependencies:
+```bash
+pip install .[torch]
+```
+
+#### For Developers (Contributing)
+If you plan to contribute to the project, you will need the development dependencies (like `ruff`, `mypy`, etc.) in addition to the core package:
+```bash
+pip install .[dev,torch]
+```
+
+### 2. Docker Setup
+
+The recommended way to work with this project is by using a containerized environment.
+
+#### With VS Code (Recommended)
+This is the easiest method, ensuring a consistent and reproducible environment.
+
+1.  **Prerequisites:**
+    *   [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+    *   [Visual Studio Code](https://code.visualstudio.com/)
+    *   [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) for VS Code.
+
+2.  **Launch:**
+    *   Clone the repository.
+    *   Open the project folder in VS Code.
+    *   A notification will appear asking if you want to "Reopen in Container". Click it.
+
+VS Code will automatically build the Docker image, install all necessary dependencies, and connect to the container. The environment will be ready for both using and developing the project.
+
+#### Without VS Code (Manual Docker Build)
+If you are not using VS Code, you can build and run the Docker container manually.
+
+1.  **Prerequisites:**
+    *   [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+
+2.  **Build the image:**
+    From the project root directory, run:
+    ```bash
+    docker build -f .devcontainer/Dockerfile -t fruit-internship .
+    ```
+
+3.  **Run the container:**
+    This command starts an interactive session inside the container, mounts your local project directory, and enables GPU access.
+
+    *On Windows (Command Prompt/PowerShell):*
+    ```bash
+    docker run --gpus all --ipc=host -v "%cd%:/workspace" -it fruit-internship bash
+    ```
+
+    *On macOS/Linux:*
+    ```bash
+    docker run --gpus all --ipc=host -v "$(pwd):/workspace" -it fruit-internship bash
+    ```
+
+4.  **Install dependencies inside the container:**
+    Once you have a shell inside the container, install the project dependencies:
+    ```bash
+    pip install --upgrade pip && pip install -e '.[dev]'
+    ```
+The environment is now ready.
+
 
 ---
 
