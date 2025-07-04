@@ -3,7 +3,6 @@ import pathlib
 from tqdm import tqdm
 from omegaconf import DictConfig
 from wandb.sdk.wandb_run import Run
-import wandb
 import torch.nn as nn
 from typing import List, Optional, Tuple
 from pathlib import Path
@@ -84,7 +83,7 @@ class EarlyStopping:
         Returns:
             None
         """
-        filename = f"{self.name}_{val_metric:.4f}.pth"
+        filename = f"{self.name}_{val_metric:.4f}.pth".replace("=", "-")
         full_path = self.path / filename
         torch.save(model.state_dict(), full_path)
         self.saved_checkpoints.append((val_metric, full_path))
