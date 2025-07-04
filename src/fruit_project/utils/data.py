@@ -87,14 +87,13 @@ def make_datasets(cfg: DictConfig) -> Tuple[DET_DS, DET_DS, DET_DS]:
     )
     val_ds = DET_DS(
         data_dir,
-        "valid",
+        "val",
         "images",
         "labels",
         "data.yaml",
         None,
         cfg.model.input_size,
     )
-
     return train_ds, test_ds, val_ds
 
 
@@ -109,7 +108,7 @@ def get_sampler(train_ds: DET_DS, strat: str) -> WeightedRandomSampler:
     Returns:
         WeightedRandomSampler: A sampler for the training dataset.
     """
-    class_counts = Counter()
+    class_counts: Counter = Counter()
     for _, target in train_ds:
         classes = {ann["category_id"] for ann in target["annotations"]}
         class_counts.update(classes)
