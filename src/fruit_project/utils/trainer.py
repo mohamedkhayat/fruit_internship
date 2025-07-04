@@ -168,6 +168,15 @@ class Trainer:
         for target_dict in y:
             annotations = target_dict["annotations"]
 
+            if not annotations:
+                y_metric_format.append(
+                    {
+                        "boxes": torch.empty((0, 4), dtype=torch.float32),
+                        "labels": torch.empty((0,), dtype=torch.int64),
+                    }
+                )
+                continue
+
             boxes_xywh = np.array(
                 [ann["bbox"] for ann in annotations], dtype=np.float32
             )
@@ -220,7 +229,7 @@ class Trainer:
             batch = batch.to(self.device)
             batch = self.move_labels_to_device(batch)
 
-            with torch.autocast(device_type=device_str, dtype=torch.float16):
+            with torch.autocast(device_type=device_str, dtype=torch.bfloat16):
                 out = self.model(**batch)
                 batch_loss = out.loss / self.accum_steps
 
@@ -287,8 +296,6 @@ class Trainer:
         else:
             cm = None
 
-        device_str = str(self.device).split(":")[0]
-
         progress_bar = tqdm(
             test_dl,
             desc=f"Epoch {current_epoch} Evaluating",
@@ -300,9 +307,8 @@ class Trainer:
             batch = batch.to(self.device)
             batch = self.move_labels_to_device(batch)
 
-            with torch.autocast(device_type=device_str, dtype=torch.float16):
-                out = self.model(**batch)
-                batch_loss = out.loss
+            out = self.model(**batch)
+            batch_loss = out.loss
 
             loss += batch_loss.item()
 
@@ -329,7 +335,7 @@ class Trainer:
 
             metric.update(preds_for_map, targets_for_map)
 
-            if calc_cm:
+            if calc_cm and cm:
                 for i in range(len(preds)):
                     pred_item = preds[i]
                     gt_item = targets_for_map[i]
