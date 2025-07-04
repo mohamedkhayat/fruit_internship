@@ -1,14 +1,14 @@
 defaults:
   - model: detrv2_18
   - _self_
-  
+
 effective_batch_size: 64
 step_batch_size : 8
 epochs: 10
 lr: 0.0001
-weight_decay: 0.0005
+weight_decay: 0.01
 warmup_epochs: 5
-root_dir: Fruits-detection
+root_dir: Fruit_dataset
 log : True
 seed : 42
 n_images : 6
@@ -26,4 +26,4 @@ min_viz : 0.4
 min_width : 14
 min_height : 14
 aug : hard
-sample_strat : mean
+sample_strat : max
