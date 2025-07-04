@@ -129,8 +129,8 @@ def log_images(
 def log_transforms(
     run: Run,
     batch: Tuple[Dict, List],
-    grid_size: Tuple[int, int] = (3, 3),
-    id2lbl: Optional[Dict[int, str]] = None,
+    grid_size: Tuple[int, int],
+    id2lbl: Dict[int, str],
     transforms: Optional[Dict] = None,
     mean: Optional[torch.Tensor] = None,
     std: Optional[torch.Tensor] = None,
