@@ -44,6 +44,8 @@ include = ["fruit_project*"]
 
 [tool.mypy]
 ignore_missing_imports = true
+warn_return_any = false
+warn_unused_configs = true
 
 # per-module behavior
 [[tool.mypy.overrides]]
@@ -57,4 +59,8 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "hydra.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "yaml.*"
 ignore_missing_imports = true
