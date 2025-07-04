@@ -58,8 +58,8 @@ class DET_DS(Dataset):
     ):
         self.root_dir = pathlib.Path("data", root_dir)
         self.type = type
-        self.image_dir = self.root_dir / self.type / image_dir
-        self.label_dir = self.root_dir / self.type / label_dir
+        self.image_dir = self.root_dir / image_dir / self.type
+        self.label_dir = self.root_dir / label_dir / self.type
         self.transforms = transforms
         self.input_size = input_size
         self.config_dir = self.root_dir / config_file
@@ -67,10 +67,15 @@ class DET_DS(Dataset):
 
         valid = []
         for p in raw_paths:
-            if cv2.imread(str(p)) is not None:
+            label_path = pathlib.Path(self.label_dir) / (p.stem + ".txt")
+            if cv2.imread(str(p)) is not None and label_path.exists():
                 valid.append(p)
             else:
-                print(f"[WARN] dropping bad image {p.name}")
+                if cv2.imread(str(p)) is None:
+                    print(f"[WARN] dropping bad image {p.name}")
+                if not label_path.exists():
+                    print(f"[WARN] dropping image {p.name} due to missing label")
+
         self.image_paths = valid
         with open(self.config_dir, "r") as f:
             config = yaml.safe_load(f)
@@ -102,6 +107,7 @@ class DET_DS(Dataset):
         """
         image_path = self.image_paths[idx]
         label_path = pathlib.Path(self.label_dir) / (image_path.stem + ".txt")
+
         img = cv2.imread(image_path)
         if img is None:
             new_idx = random.randrange(len(self.image_paths))
