@@ -64,3 +64,8 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = "yaml.*"
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "wandb.*"
+follow_imports = "skip"
+follow_imports_for_stubs = true
