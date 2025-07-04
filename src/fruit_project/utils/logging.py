@@ -109,6 +109,8 @@ def log_images(
             labels=labels,
             colors="red",
             width=2,
+            font="fonts/FiraCodeNerdFont-Bold.ttf",
+            font_size=30,
         )
 
         axes[i].imshow(to_pil_image(annotated))
@@ -128,7 +130,7 @@ def log_transforms(
     run: Run,
     batch: Tuple[Dict, List],
     grid_size: Tuple[int, int] = (3, 3),
-    id2lbl: Optional[Dict] = None,
+    id2lbl: Optional[Dict[int, str]] = None,
     transforms: Optional[Dict] = None,
     mean: Optional[torch.Tensor] = None,
     std: Optional[torch.Tensor] = None,
@@ -177,6 +179,8 @@ def log_transforms(
             labels=labels,
             colors="red",
             width=2,
+            font="fonts/FiraCodeNerdFont-Bold.ttf",
+            font_size=30,
         )
 
         axes[i].imshow(to_pil_image(annotated))
