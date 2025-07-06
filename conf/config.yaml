@@ -28,3 +28,5 @@ min_height : 14
 aug : hard
 sample_strat : max
 do_sample : True
+freeze_backbone : True
+freeze_encoder : False
