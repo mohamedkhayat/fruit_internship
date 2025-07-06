@@ -190,7 +190,7 @@ def make_dataloaders(
         persistent_workers=True,
         pin_memory=True,
         worker_init_fn=worker_init,
-        generator=generator,
+        generator=torch.Generator().manual_seed(generator.initial_seed() + 2),
         collate_fn=collate,
     )
 
@@ -201,14 +201,13 @@ def make_dataloaders(
         persistent_workers=True,
         pin_memory=True,
         worker_init_fn=worker_init,
-        generator=generator,
+        generator=torch.Generator().manual_seed(generator.initial_seed() + 3),
         collate_fn=collate,
     )
 
-    train_dl.dataset.transforms = transforms["test"]
-    train_sample = next(iter(train_dl))
     train_dl, test_dl, val_dl = set_transforms(train_dl, test_dl, val_dl, transforms)
-    return train_dl, test_dl, val_dl, train_sample
+    test_sample = next(iter(test_dl))
+    return train_dl, test_dl, val_dl, test_sample
 
 
 def get_labels_and_mappings(
