@@ -218,6 +218,14 @@ class Trainer:
         self.model.train()
         self.optimizer.zero_grad(set_to_none=True)
 
+        metric = MeanAveragePrecision(
+            box_format="xyxy",
+            average="macro",
+            max_detection_thresholds=[1, 10, 100],
+            iou_thresholds=None,
+            class_metrics=True,
+        )
+        metric.warn_on_many_detections = False
         loss = 0.0
 
         device_str = str(self.device).split(":")[0]
@@ -229,7 +237,7 @@ class Trainer:
             bar_format="{l_bar}{bar:30}{r_bar}{bar:-30b}",
         )
 
-        for batch_idx, (batch, _) in enumerate(progress_bar):
+        for batch_idx, (batch, y) in enumerate(progress_bar):
             batch = batch.to(self.device)
             batch = self.move_labels_to_device(batch)
 
@@ -255,13 +263,46 @@ class Trainer:
                     "Batch": f"{batch_idx + 1}/{len(self.train_dl)}",
                 }
             )
+            sizes = torch.stack([t["orig_size"] for t in y])
+            preds = self.processor.post_process_object_detection(
+                out, threshold=0.001, target_sizes=sizes
+            )
+
+            preds = self.nested_to_cpu(preds)
+            targets_for_map = self.format_targets_for_map(y)
+            preds_for_map = [p.copy() for p in preds]
+            for p in preds_for_map:
+                topk = p["scores"].argsort(descending=True)[:300]
+                for k in ("boxes", "scores", "labels"):
+                    p[k] = p[k][topk]
+
+            metric.update(preds_for_map, targets_for_map)
+
+        stats = metric.compute()
+        metric.reset()
 
         loss /= len(self.train_dl)
+        train_map, train_map50, train_map_per_class = (
+            stats["map"].item(),
+            stats["map_50"].item(),
+            stats["map_per_class"],
+        )
 
         tqdm.write(f"Epoch : {current_epoch}")
-        tqdm.write(f"\tTrain --- Loss: {loss:.4f}")
+        tqdm.write(
+            f"\tTrain --- Loss: {loss:.4f}, mAP50-95: {train_map:.4f}, mAP@50 : {train_map50:.4f}"
+        )
 
-        return loss
+        tqdm.write("\t--- Per-class mAP@50-95 ---")
+        class_names = self.train_ds.labels
+        if train_map_per_class.is_cuda:
+            train_map_per_class = train_map_per_class.cpu()
+
+        for i, class_name in enumerate(class_names):
+            if i < len(train_map_per_class):
+                tqdm.write(f"\t\t{class_name:<15}: {train_map_per_class[i].item():.4f}")
+
+        return loss, train_map, train_map50, train_map_per_class
 
     @torch.no_grad()
     def eval(
@@ -406,7 +447,7 @@ class Trainer:
                     self.run, ckpt_path, self.cfg.model.name, epoch, self.cfg.wait
                 )
 
-            train_loss = self.train(
+            train_loss, train_map, train_map50, train_map_per_class = self.train(
                 epoch + 1,
             )
 
@@ -424,6 +465,9 @@ class Trainer:
                 log_data = self.get_epoch_log_data(
                     epoch,
                     train_loss,
+                    train_map,
+                    train_map50,
+                    train_map_per_class,
                     test_map,
                     test_map50,
                     test_loss,
@@ -486,6 +530,9 @@ class Trainer:
         self,
         epoch: int,
         train_loss: float,
+        train_map: float,
+        train_map50: float,
+        train_map_per_class: torch.Tensor,
         test_map: float,
         test_map50: float,
         test_loss: float,
@@ -508,17 +555,20 @@ class Trainer:
         log_data = {
             "epoch": epoch,
             "train/loss": train_loss,
+            "train/map": train_map,
+            "train/map 50": train_map50,
             "test/map": test_map,
             "test/map 50": test_map50,
             "test/loss": test_loss,
             "Learning rate": float(f"{self.scheduler.get_last_lr()[0]:.6f}"),
         }
 
-        class_names = self.test_dl.dataset.labels
-        map_per_class = test_map_per_class.cpu()
-        for i, name in enumerate(class_names):
-            if i < len(map_per_class):
-                log_data[f"test/map_50-95/{name}"] = map_per_class[i].item()
+        self.log_per_class_map(
+            self.test_dl.dataset.labels, test_map_per_class, "test", log_data
+        )
+        self.log_per_class_map(
+            self.train_dl.dataset.labels, train_map_per_class, "train", log_data
+        )
 
         return log_data
 
@@ -557,3 +607,9 @@ class Trainer:
         )
         log_detection_confusion_matrix(self.run, cm, list(self.val_dl.dataset.labels))
         return log_data
+
+    def log_per_class_map(self, class_names, map_per_class, ds_type, log_data):
+        map_per_class = map_per_class.cpu()
+        for i, name in enumerate(class_names):
+            if i < len(map_per_class):
+                log_data[f"{ds_type}/map_50-95/{name}"] = map_per_class[i].item()
