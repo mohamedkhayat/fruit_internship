@@ -97,7 +97,7 @@ def make_datasets(cfg: DictConfig) -> Tuple[DET_DS, DET_DS, DET_DS]:
     return train_ds, test_ds, val_ds
 
 
-def get_sampler(train_ds: DET_DS, strat: str) -> WeightedRandomSampler:
+def get_sampler(train_ds: DET_DS, strat: str, generator) -> WeightedRandomSampler:
     """
     Creates a WeightedRandomSampler for the training dataset.
 
@@ -127,7 +127,11 @@ def get_sampler(train_ds: DET_DS, strat: str) -> WeightedRandomSampler:
             weights.append(np.mean([class_weights[c] for c in classes]))
 
     weights = torch.tensor(weights, dtype=torch.double)
-    sampler = WeightedRandomSampler(weights, num_samples=len(weights), replacement=True)
+    sampler_generator = torch.Generator().manual_seed(generator.initial_seed() + 1)
+
+    sampler = WeightedRandomSampler(
+        weights, num_samples=len(weights), replacement=True, generator=sampler_generator
+    )
 
     return sampler
 
@@ -140,7 +144,7 @@ def make_dataloaders(
     generator: torch.Generator,
     processor: AutoImageProcessor,
     transforms: Compose,
-) -> Tuple[DataLoader, DataLoader, DataLoader]:
+) -> Tuple[DataLoader, DataLoader, DataLoader, Tuple[torch.Tensor, torch.Tensor]]:
     """
     Creates dataloaders for training, testing, and validation datasets.
 
@@ -154,18 +158,21 @@ def make_dataloaders(
         transforms (Compose): Transformations to apply to the datasets.
 
     Returns:
-        Tuple[DataLoader, DataLoader, DataLoader]: The training, testing, and validation dataloaders.
+        Tuple[DataLoader, DataLoader, DataLoader, Tuple[torch.Tensor, torch.Tensor]]: The training, testing, validation dataloaders and a training sample.
     """
     print("making dataloaders")
 
     worker_init = functools.partial(seed_worker, base_seed=cfg.seed)
     collate = functools.partial(collate_fn, processor=processor)
 
-    sampler = get_sampler(train_ds, cfg.sample_strat)
+    sampler = None
+    if cfg.do_sample:
+        sampler = get_sampler(train_ds, cfg.sample_strat, generator)
 
     train_dl = DataLoader(
         train_ds,
         batch_size=cfg.step_batch_size,
+        shuffle=not cfg.do_sample,
         sampler=sampler,
         num_workers=cfg.num_workers,
         persistent_workers=True,
@@ -197,8 +204,11 @@ def make_dataloaders(
         generator=generator,
         collate_fn=collate,
     )
+
+    train_dl.dataset.transforms = transforms["test"]
+    train_sample = next(iter(train_dl))
     train_dl, test_dl, val_dl = set_transforms(train_dl, test_dl, val_dl, transforms)
-    return train_dl, test_dl, val_dl
+    return train_dl, test_dl, val_dl, train_sample
 
 
 def get_labels_and_mappings(
