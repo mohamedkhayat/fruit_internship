@@ -365,7 +365,7 @@ class Trainer:
         metric.reset()
 
         loss /= len(test_dl)
-        test_map, test_map50, test_map_50_per_class = (
+        test_map, test_map50, test_map_per_class = (
             stats["map"].item(),
             stats["map_50"].item(),
             stats["map_per_class"],
@@ -375,18 +375,18 @@ class Trainer:
             f"\tEval  --- Loss: {loss:.4f}, mAP50-95: {test_map:.4f}, mAP@50 : {test_map50:.4f}"
         )
 
-        tqdm.write("\t--- Per-class mAP@50 ---")
+        tqdm.write("\t--- Per-class mAP@50-95 ---")
         class_names = test_dl.dataset.labels
-        if test_map_50_per_class.is_cuda:
-            test_map_50_per_class = test_map_50_per_class.cpu()
+        if test_map_per_class.is_cuda:
+            test_map_per_class = test_map_per_class.cpu()
 
         for i, class_name in enumerate(class_names):
-            if i < len(test_map_50_per_class):
+            if i < len(test_map_per_class):
                 tqdm.write(
-                    f"\t\t{class_name:<15}: {test_map_50_per_class[i].item():.4f}"
+                    f"\t\t{class_name:<15}: {test_map_per_class[i].item():.4f}"
                 )
 
-        return loss, test_map, test_map50, test_map_50_per_class, cm
+        return loss, test_map, test_map50, test_map_per_class, cm
 
     def fit(self) -> None:
         """
@@ -513,10 +513,10 @@ class Trainer:
         }
 
         class_names = self.test_dl.dataset.labels
-        map_50_per_class = test_map_per_class.cpu()
+        map_per_class = test_map_per_class.cpu()
         for i, name in enumerate(class_names):
-            if i < len(map_50_per_class):
-                log_data[f"test/map_50/{name}"] = map_50_per_class[i].item()
+            if i < len(map_per_class):
+                log_data[f"test/map_50-95/{name}"] = map_per_class[i].item()
 
         return log_data
 
@@ -533,7 +533,7 @@ class Trainer:
         """
         self.model = self.early_stopping.get_best_model(self.model)
 
-        val_loss, val_map, val_map50, val_map_50_per_class, cm = self.eval(
+        val_loss, val_map, val_map50, val_map_per_class, cm = self.eval(
             self.val_dl, epoch + 1, calc_cm=True
         )
         log_data = {
@@ -543,12 +543,12 @@ class Trainer:
             "val/map@50": val_map50,
         }
 
-        tqdm.write("\t--- Per-class mAP@50 ---")
+        tqdm.write("\t--- Per-class mAP@50-95 ---")
         class_names = self.val_dl.dataset.labels
-        map_50_per_class = val_map_50_per_class.cpu()
+        map_per_class = val_map_per_class.cpu()
         for i, name in enumerate(class_names):
-            if i < len(map_50_per_class):
-                log_data[f"val/map_50/{name}"] = map_50_per_class[i].item()
+            if i < len(map_per_class):
+                log_data[f"val/map_50-95/{name}"] = map_per_class[i].item()
 
         tqdm.write(
             f"\tVal  --- Loss: {val_loss:.4f}, mAP50-95: {val_map:.4f}, mAP@50 : {val_map50:.4f}"
