@@ -98,23 +98,27 @@ class Trainer:
         Returns:
             AdamW: The optimizer.
         """
-        param_dicts = [
-            {
-                "params": [
-                    p
-                    for n, p in self.model.named_parameters()
-                    if "backbone" not in n and p.requires_grad
-                ]
-            },
-            {
-                "params": [
-                    p
-                    for n, p in self.model.named_parameters()
-                    if "backbone" in n and p.requires_grad
-                ],
-                "lr": self.cfg.lr / self.cfg.lr_factor,
-            },
+        non_backbone_params = [
+            p
+            for n, p in self.model.named_parameters()
+            if "backbone" not in n and p.requires_grad
         ]
+
+        backbone_params = [
+            p
+            for n, p in self.model.named_parameters()
+            if "backbone" in n and p.requires_grad
+        ]
+
+        param_dicts = []
+
+        if non_backbone_params:
+            param_dicts.append({"params": non_backbone_params})
+
+        if backbone_params:
+            param_dicts.append(
+                {"params": backbone_params, "lr": self.cfg.lr / self.cfg.lr_factor}
+            )
 
         optimizer = AdamW(
             param_dicts, lr=self.cfg.lr, weight_decay=self.cfg.weight_decay
@@ -382,9 +386,7 @@ class Trainer:
 
         for i, class_name in enumerate(class_names):
             if i < len(test_map_per_class):
-                tqdm.write(
-                    f"\t\t{class_name:<15}: {test_map_per_class[i].item():.4f}"
-                )
+                tqdm.write(f"\t\t{class_name:<15}: {test_map_per_class[i].item():.4f}")
 
         return loss, test_map, test_map50, test_map_per_class, cm
 
