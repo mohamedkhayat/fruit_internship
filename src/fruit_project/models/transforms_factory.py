@@ -20,7 +20,7 @@ def get_transforms(cfg: DictConfig):
             A.RandomSizedBBoxSafeCrop(
                 height=cfg.model.input_size,
                 width=cfg.model.input_size,
-                erosion_rate=0.2,
+                erosion_rate=0.1,
                 p=1.0,
             ),
             A.HorizontalFlip(p=0.5),
