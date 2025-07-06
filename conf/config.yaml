@@ -4,7 +4,7 @@ defaults:
 
 effective_batch_size: 64
 step_batch_size : 8
-epochs: 10
+epochs: 30
 lr: 0.0001
 weight_decay: 0.01
 warmup_epochs: 5
@@ -12,7 +12,7 @@ root_dir: Fruit_dataset
 log : True
 seed : 42
 n_images : 6
-patience : 5
+patience : 15
 delta : 0.001
 num_workers : 4
 download_data : False
@@ -22,11 +22,12 @@ checkpoint : False
 wait : False
 info : False
 min_area : 512
-min_viz : 0.2
-min_width : 14
-min_height : 14
+min_viz : 0.1
+min_width : 12
+min_height : 12
 aug : hard
 sample_strat : max
 do_sample : True
 freeze_backbone : True
 freeze_encoder : False
+partially_freeze_backbone : False
