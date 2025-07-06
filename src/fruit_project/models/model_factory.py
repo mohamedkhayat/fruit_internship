@@ -82,7 +82,7 @@ def get_RTDETRv2(
         config=config,
         ignore_mismatched_sizes=True,
     )
-
+    model = freeze_weights(model, cfg.freeze_backbone, cfg.freeze_encoder)
     processor = AutoImageProcessor.from_pretrained(checkpoint, trust_remote_code=True)
 
     transforms = get_transforms(cfg)
@@ -94,3 +94,19 @@ def get_RTDETRv2(
         processor.image_std,
         processor,
     )
+
+
+def freeze_weights(
+    model: nn.Module, freeze_backbone=True, freeze_encoder=False
+) -> nn.Module:
+    for name, param in model.named_parameters():
+        if freeze_backbone and name.startswith("model.backbone"):
+            param.requires_grad = False
+
+        elif freeze_encoder and name.startswith("model.encoder"):
+            param.requires_grad = False
+
+        else:
+            param.requires_grad = True
+
+    return model
