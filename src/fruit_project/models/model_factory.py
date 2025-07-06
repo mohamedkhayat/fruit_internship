@@ -76,17 +76,24 @@ def get_RTDETRv2(
         id2label=id2label,
         label2id=label2id,
     )
+
     model = AutoModelForObjectDetection.from_pretrained(
         checkpoint,
         trust_remote_code=True,
         config=config,
         ignore_mismatched_sizes=True,
     )
-    model = freeze_weights(model, cfg.freeze_backbone, cfg.freeze_encoder)
+
+    model = freeze_weights(
+        model, cfg.freeze_backbone, cfg.partially_freeze_backbone, cfg.freeze_encoder
+    )
+
     processor = AutoImageProcessor.from_pretrained(checkpoint, trust_remote_code=True)
 
     transforms = get_transforms(cfg)
+
     print("model loaded")
+
     return (
         model.to(device),
         transforms,
@@ -97,10 +104,20 @@ def get_RTDETRv2(
 
 
 def freeze_weights(
-    model: nn.Module, freeze_backbone=True, freeze_encoder=False
+    model: nn.Module,
+    freeze_backbone=True,
+    partially_freeze_backbone=False,
+    freeze_encoder=False,
 ) -> nn.Module:
     for name, param in model.named_parameters():
-        if freeze_backbone and name.startswith("model.backbone"):
+        if (
+            freeze_backbone
+            and name.startswith("model.backbone")
+            and not(
+                partially_freeze_backbone
+                and name.startswith("model.backbone.model.encoder.stages.3.layers")
+            )
+        ):
             param.requires_grad = False
 
         elif freeze_encoder and name.startswith("model.encoder"):
