@@ -42,11 +42,11 @@ def main(cfg: DictConfig):
         train_ds.lbl2id,
     )
 
-    train_dl, test_dl, val_dl, train_sample = make_dataloaders(
+    train_dl, test_dl, val_dl, test_sample = make_dataloaders(
         cfg, train_ds, test_ds, val_ds, generator, processor, transforms
     )
 
-    log_images(run, train_sample, test_ds.id2lbl, (3, 3), mean, std)
+    log_images(run, test_sample, test_ds.id2lbl, (3, 3), mean, std)
     log_transforms(
         run, next(iter(train_dl)), (3, 3), train_ds.id2lbl, transforms, mean, std
     )
