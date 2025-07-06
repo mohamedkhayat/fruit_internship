@@ -294,7 +294,7 @@ class Trainer:
         )
 
         tqdm.write("\t--- Per-class mAP@50-95 ---")
-        class_names = self.train_ds.labels
+        class_names = self.train_dl.dataset.labels
         if train_map_per_class.is_cuda:
             train_map_per_class = train_map_per_class.cpu()
 
