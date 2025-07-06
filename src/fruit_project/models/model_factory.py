@@ -113,7 +113,7 @@ def freeze_weights(
         if (
             freeze_backbone
             and name.startswith("model.backbone")
-            and not(
+            and not (
                 partially_freeze_backbone
                 and name.startswith("model.backbone.model.encoder.stages.3.layers")
             )
