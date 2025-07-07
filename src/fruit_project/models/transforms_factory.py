@@ -27,7 +27,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
             A.HorizontalFlip(p=0.5),
             A.OneOf(
                 [
-                    A.RGBShift(15, 20, 15, p=0.5),
+                    A.RGBShift(10, 15, 10, p=0.5),
                     A.HueSaturationValue(
                         hue_shift_limit=10,
                         sat_shift_limit=15,
@@ -42,13 +42,13 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                     A.ToGray(p=0.05),
                     A.ChannelDropout(channel_drop_range=(1, 2), p=0.1),
                 ],
-                p=0.2,
+                p=0.15,
             ),
             A.OneOf(
                 [
                     A.GaussianBlur(blur_limit=3, p=0.3),
                     A.MedianBlur(blur_limit=3, p=0.3),
-                    A.GaussNoise(var_limit=(10, 50), p=0.3),
+                    A.GaussNoise(str_range=(0.2, 0.3), p=0.3),
                 ],
                 p=0.4,
             ),
@@ -60,10 +60,18 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                 p=0.5,
             ),
             A.ConstrainedCoarseDropout(
-                num_holes_range=(1, 2),
-                hole_height_range=(0.03, 0.1),
-                hole_width_range=(0.03, 0.1),
+                num_holes_range=(1, 3),
+                hole_height_range=(0.2, 0.25),
+                hole_width_range=(0.2, 0.25),
                 bbox_labels=[k for k, v in id2label.items() if v != "Cherry"],
+                fill=0,
+                p=0.2,
+            ),
+            A.ConstrainedCoarseDropout(
+                num_holes_range=(1, 2),
+                hole_height_range=(0.3, 0.4),
+                hole_width_range=(0.3, 0.4),
+                bbox_labels=[k for k, v in id2label.items() if v == "Cherry"],
                 fill=0,
                 p=0.2,
             ),
