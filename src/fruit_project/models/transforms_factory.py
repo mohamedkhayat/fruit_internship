@@ -6,7 +6,7 @@ from omegaconf import DictConfig
 os.environ["NO_ALBUMENTATIONS_UPDATE"] = "1"
 
 
-def get_transforms(cfg: DictConfig):
+def get_transforms(cfg: DictConfig, classes):
     """
     Generates a dictionary of Albumentations transformations for training and testing.
     Args:
@@ -26,24 +26,32 @@ def get_transforms(cfg: DictConfig):
             A.HorizontalFlip(p=0.5),
             A.OneOf(
                 [
-                    A.RGBShift(15, 15, 15, p=1.0),
+                    A.RGBShift(20, 20, 20, p=0.5),
                     A.HueSaturationValue(
                         hue_shift_limit=10,
                         sat_shift_limit=20,
                         val_shift_limit=10,
-                        p=1.0,
+                        p=0.6,
                     ),
                     # A.ToGray(p=1.0),
                 ],
-                p=0.5,
+                p=0.6,
             ),
             A.OneOf(
                 [
-                    A.RandomBrightnessContrast(p=1.0),
-                    A.RandomToneCurve(p=1.0),
+                    A.RandomBrightnessContrast(ensure_safe_range=True,p=0.7),
+                    A.RandomToneCurve(p=0.7),
                 ],
                 p=0.5,
             ),
+            A.ConstrainedCoarseDropout(
+                num_holes_range=(1, 2),
+                hole_height_range=(0.03, 0.1), 
+                hole_width_range=(0.03, 0.1),   
+                bbox_labels=[cls for cls in classes if cls !="Cherry"],       
+                fill=0,
+                p=0.2
+           ),
             A.CLAHE(clip_limit=2.0, p=0.3),
         ],
         bbox_params=A.BboxParams(
