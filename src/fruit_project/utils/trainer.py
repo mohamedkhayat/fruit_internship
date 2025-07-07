@@ -241,9 +241,7 @@ class Trainer:
             batch = batch.to(self.device)
             batch = self.move_labels_to_device(batch)
 
-            with torch.autocast(
-                device_type=self.device.type, dtype=torch.bfloat16
-            ):
+            with torch.autocast(device_type=self.device.type, dtype=torch.bfloat16):
                 out = self.model(**batch)
                 batch_loss = out.loss / self.accum_steps
 
@@ -610,7 +608,13 @@ class Trainer:
         log_detection_confusion_matrix(self.run, cm, list(self.val_dl.dataset.labels))
         return log_data
 
-    def log_per_class_map(self, class_names : List, map_per_class : torch.Tensor, ds_type : str, log_data : Dict) -> None:
+    def log_per_class_map(
+        self,
+        class_names: List,
+        map_per_class: torch.Tensor,
+        ds_type: str,
+        log_data: Dict,
+    ) -> None:
         map_per_class = map_per_class.cpu()
         for i, name in enumerate(class_names):
             if i < len(map_per_class):
