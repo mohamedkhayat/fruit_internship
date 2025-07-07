@@ -9,6 +9,8 @@ from omegaconf import DictConfig
 from fruit_project.utils.logging import (
     log_checkpoint_artifact,
     log_detection_confusion_matrix,
+    log_confidence_analysis,
+    log_detailed_class_stats,
 )
 from fruit_project.utils.early_stop import EarlyStopping
 from torch.optim.lr_scheduler import CosineAnnealingLR, SequentialLR, LinearLR
@@ -335,8 +337,15 @@ class Trainer:
         metric.warn_on_many_detections = False
         loss = 0.0
         if calc_cm:
+            # Get confidence thresholds from config if available
+            conf_thresholds = getattr(self.cfg, 'class_confidence_thresholds', None)
+            if conf_thresholds is None:
+                conf_thresholds = getattr(self.cfg, 'conf_threshold', 0.25)
+                
             cm = ConfusionMatrix(
-                nc=len(test_dl.dataset.labels), conf=0.25, iou_thres=0.45
+                nc=len(test_dl.dataset.labels), 
+                conf=conf_thresholds, 
+                iou_thres=getattr(self.cfg, 'iou_threshold', 0.45)
             )
         else:
             cm = None
@@ -606,6 +615,11 @@ class Trainer:
             f"\tVal  --- Loss: {val_loss:.4f}, mAP50-95: {val_map:.4f}, mAP@50 : {val_map50:.4f}"
         )
         log_detection_confusion_matrix(self.run, cm, list(self.val_dl.dataset.labels))
+        
+        # Log confidence analysis for debugging detection issues
+        log_confidence_analysis(self.run, cm, list(self.val_dl.dataset.labels))
+        log_detailed_class_stats(self.run, cm, list(self.val_dl.dataset.labels))
+        
         return log_data
 
     def log_per_class_map(

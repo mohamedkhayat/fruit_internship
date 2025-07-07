@@ -306,3 +306,142 @@ def log_detection_confusion_matrix(
     fig = cm_object.plot(class_names=names)
     run.log({"val/confusion_matrix": wandb.Image(fig)})
     plt.close(fig)
+
+
+def log_confidence_analysis(
+    run: Run, cm_object: ConfusionMatrix, class_names: List[str]
+) -> None:
+    """
+    Logs confidence score analysis for debugging detection issues.
+
+    Args:
+        run (Run): The wandb run object.
+        cm_object (ConfusionMatrix): The confusion matrix object with confidence tracking.
+        class_names (List[str]): The list of class names.
+    """
+    if not run or not hasattr(cm_object, 'confidence_scores'):
+        return
+
+    try:
+        # Get confidence analysis
+        analysis = cm_object.get_confidence_analysis(class_names)
+        
+        # Log overall statistics
+        if 'overall' in analysis:
+            overall_stats = analysis['overall']
+            run.log({
+                "confidence_analysis/overall_mean": overall_stats['mean_confidence'],
+                "confidence_analysis/overall_std": overall_stats['std_confidence'],
+                "confidence_analysis/total_detections": overall_stats['total_detections']
+            })
+        
+        # Log per-class statistics
+        for class_name, stats in analysis.items():
+            if class_name == 'overall':
+                continue
+                
+            class_id = stats['class_id']
+            prefix = f"confidence_analysis/{class_name}"
+            
+            # Log detection metrics
+            run.log({
+                f"{prefix}/precision": stats['precision'],
+                f"{prefix}/recall": stats['recall'],
+                f"{prefix}/tp": stats['tp'],
+                f"{prefix}/fp": stats['fp'], 
+                f"{prefix}/fn": stats['fn'],
+                f"{prefix}/total_detections": stats['total_detections'],
+                f"{prefix}/correct_detections": stats['correct_detections'],
+                f"{prefix}/incorrect_detections": stats['incorrect_detections'],
+                f"{prefix}/above_threshold_detections": stats['above_threshold_detections'],
+                f"{prefix}/current_threshold": stats['current_threshold']
+            })
+            
+            # Log confidence statistics
+            conf_stats = stats['confidence_stats']
+            run.log({
+                f"{prefix}/conf_all_mean": conf_stats['all_mean'],
+                f"{prefix}/conf_all_std": conf_stats['all_std'],
+                f"{prefix}/conf_correct_mean": conf_stats['correct_mean'],
+                f"{prefix}/conf_correct_std": conf_stats['correct_std'],
+                f"{prefix}/conf_incorrect_mean": conf_stats['incorrect_mean'],
+                f"{prefix}/conf_incorrect_std": conf_stats['incorrect_std']
+            })
+            
+            # Log suggested thresholds if available
+            if 'suggested_thresholds' in stats:
+                thresholds = stats['suggested_thresholds']
+                run.log({
+                    f"{prefix}/suggested_threshold_p25": thresholds['p25'],
+                    f"{prefix}/suggested_threshold_p50": thresholds['p50'],
+                    f"{prefix}/suggested_threshold_p75": thresholds['p75']
+                })
+        
+        # Create and log confidence distribution plots
+        try:
+            fig = cm_object.plot_confidence_distributions(class_names)
+            run.log({"confidence_analysis/distributions": wandb.Image(fig)})
+            plt.close(fig)
+        except Exception as e:
+            print(f"Warning: Could not create confidence distribution plot: {e}")
+            
+    except Exception as e:
+        print(f"Warning: Could not log confidence analysis: {e}")
+
+
+def log_detailed_class_stats(
+    run: Run, cm_object: ConfusionMatrix, class_names: List[str]
+) -> None:
+    """
+    Logs detailed per-class detection statistics for debugging.
+
+    Args:
+        run (Run): The wandb run object.
+        cm_object (ConfusionMatrix): The confusion matrix object.
+        class_names (List[str]): The list of class names.
+    """
+    if not run:
+        return
+    
+    # Create a summary table for wandb
+    table_data = []
+    for class_id in range(len(class_names)):
+        if class_id >= cm_object.nc:
+            break
+            
+        stats = cm_object.class_stats[class_id]
+        class_name = class_names[class_id]
+        
+        precision = stats['tp'] / (stats['tp'] + stats['fp']) if (stats['tp'] + stats['fp']) > 0 else 0
+        recall = stats['tp'] / (stats['tp'] + stats['fn']) if (stats['tp'] + stats['fn']) > 0 else 0
+        f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+        
+        # Get confidence stats if available
+        class_confidences = [entry['confidence'] for entry in cm_object.confidence_scores 
+                           if entry['predicted_class'] == class_id]
+        avg_confidence = np.mean(class_confidences) if class_confidences else 0
+        
+        table_data.append([
+            class_name,
+            stats['tp'],
+            stats['fp'], 
+            stats['fn'],
+            stats['total_gt'],
+            stats['total_detections'],
+            f"{precision:.3f}",
+            f"{recall:.3f}", 
+            f"{f1_score:.3f}",
+            f"{avg_confidence:.3f}",
+            f"{cm_object._get_conf_threshold(class_id):.3f}"
+        ])
+    
+    # Create wandb table
+    table = wandb.Table(
+        columns=[
+            "Class", "TP", "FP", "FN", "Total GT", "Total Det", 
+            "Precision", "Recall", "F1", "Avg Conf", "Threshold"
+        ],
+        data=table_data
+    )
+    
+    run.log({"confidence_analysis/detailed_stats": table})
