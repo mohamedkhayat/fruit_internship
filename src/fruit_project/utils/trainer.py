@@ -242,7 +242,7 @@ class Trainer:
             batch = self.move_labels_to_device(batch)
 
             with torch.autocast(
-                device_type=self.device.device_type, dtype=torch.bfloat16
+                device_type=self.device.type, dtype=torch.bfloat16
             ):
                 out = self.model(**batch)
                 batch_loss = out.loss / self.accum_steps
