@@ -34,6 +34,12 @@ class ConfusionMatrix:
             return self.conf.get(class_id, 0.25)
         return self.conf
 
+    def reset(self):
+        """Reset the confusion matrix and confidence tracking."""
+        self.matrix = torch.zeros((self.nc + 1, self.nc + 1), dtype=torch.int64)
+        self.confidence_scores = []
+        self.class_stats = {i: {'tp': 0, 'fp': 0, 'fn': 0, 'total_detections': 0, 'total_gt': 0} for i in range(self.nc)}
+
     def process_batch(self, detections: torch.Tensor, labels: torch.Tensor):
         """
         Update the confusion matrix with a batch of detections and ground truths.
@@ -47,6 +53,10 @@ class ConfusionMatrix:
             for detection in detections:
                 conf_score = detection[4].item()
                 pred_class = int(detection[5].item())
+                
+                # Validate class ID
+                if pred_class >= self.nc:
+                    continue  # Skip invalid class IDs
                 
                 # Track all detections regardless of threshold for analysis
                 self.confidence_scores.append({
@@ -63,7 +73,8 @@ class ConfusionMatrix:
         if labels.shape[0] > 0:
             for label in labels:
                 gt_class = int(label[0].item())
-                self.class_stats[gt_class]['total_gt'] += 1
+                if gt_class < self.nc:  # Validate class ID
+                    self.class_stats[gt_class]['total_gt'] += 1
 
         # Apply class-specific confidence thresholds
         if detections.shape[0] > 0:

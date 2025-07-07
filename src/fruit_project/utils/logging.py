@@ -319,67 +319,74 @@ def log_confidence_analysis(
         cm_object (ConfusionMatrix): The confusion matrix object with confidence tracking.
         class_names (List[str]): The list of class names.
     """
-    if not run:
+    if not run or not hasattr(cm_object, 'confidence_scores'):
         return
 
-    # Get confidence analysis
-    analysis = cm_object.get_confidence_analysis(class_names)
-    
-    # Log overall statistics
-    if 'overall' in analysis:
-        overall_stats = analysis['overall']
-        run.log({
-            "confidence_analysis/overall_mean": overall_stats['mean_confidence'],
-            "confidence_analysis/overall_std": overall_stats['std_confidence'],
-            "confidence_analysis/total_detections": overall_stats['total_detections']
-        })
-    
-    # Log per-class statistics
-    for class_name, stats in analysis.items():
-        if class_name == 'overall':
-            continue
-            
-        class_id = stats['class_id']
-        prefix = f"confidence_analysis/{class_name}"
+    try:
+        # Get confidence analysis
+        analysis = cm_object.get_confidence_analysis(class_names)
         
-        # Log detection metrics
-        run.log({
-            f"{prefix}/precision": stats['precision'],
-            f"{prefix}/recall": stats['recall'],
-            f"{prefix}/tp": stats['tp'],
-            f"{prefix}/fp": stats['fp'], 
-            f"{prefix}/fn": stats['fn'],
-            f"{prefix}/total_detections": stats['total_detections'],
-            f"{prefix}/correct_detections": stats['correct_detections'],
-            f"{prefix}/incorrect_detections": stats['incorrect_detections'],
-            f"{prefix}/above_threshold_detections": stats['above_threshold_detections'],
-            f"{prefix}/current_threshold": stats['current_threshold']
-        })
-        
-        # Log confidence statistics
-        conf_stats = stats['confidence_stats']
-        run.log({
-            f"{prefix}/conf_all_mean": conf_stats['all_mean'],
-            f"{prefix}/conf_all_std": conf_stats['all_std'],
-            f"{prefix}/conf_correct_mean": conf_stats['correct_mean'],
-            f"{prefix}/conf_correct_std": conf_stats['correct_std'],
-            f"{prefix}/conf_incorrect_mean": conf_stats['incorrect_mean'],
-            f"{prefix}/conf_incorrect_std": conf_stats['incorrect_std']
-        })
-        
-        # Log suggested thresholds if available
-        if 'suggested_thresholds' in stats:
-            thresholds = stats['suggested_thresholds']
+        # Log overall statistics
+        if 'overall' in analysis:
+            overall_stats = analysis['overall']
             run.log({
-                f"{prefix}/suggested_threshold_p25": thresholds['p25'],
-                f"{prefix}/suggested_threshold_p50": thresholds['p50'],
-                f"{prefix}/suggested_threshold_p75": thresholds['p75']
+                "confidence_analysis/overall_mean": overall_stats['mean_confidence'],
+                "confidence_analysis/overall_std": overall_stats['std_confidence'],
+                "confidence_analysis/total_detections": overall_stats['total_detections']
             })
-    
-    # Create and log confidence distribution plots
-    fig = cm_object.plot_confidence_distributions(class_names)
-    run.log({"confidence_analysis/distributions": wandb.Image(fig)})
-    plt.close(fig)
+        
+        # Log per-class statistics
+        for class_name, stats in analysis.items():
+            if class_name == 'overall':
+                continue
+                
+            class_id = stats['class_id']
+            prefix = f"confidence_analysis/{class_name}"
+            
+            # Log detection metrics
+            run.log({
+                f"{prefix}/precision": stats['precision'],
+                f"{prefix}/recall": stats['recall'],
+                f"{prefix}/tp": stats['tp'],
+                f"{prefix}/fp": stats['fp'], 
+                f"{prefix}/fn": stats['fn'],
+                f"{prefix}/total_detections": stats['total_detections'],
+                f"{prefix}/correct_detections": stats['correct_detections'],
+                f"{prefix}/incorrect_detections": stats['incorrect_detections'],
+                f"{prefix}/above_threshold_detections": stats['above_threshold_detections'],
+                f"{prefix}/current_threshold": stats['current_threshold']
+            })
+            
+            # Log confidence statistics
+            conf_stats = stats['confidence_stats']
+            run.log({
+                f"{prefix}/conf_all_mean": conf_stats['all_mean'],
+                f"{prefix}/conf_all_std": conf_stats['all_std'],
+                f"{prefix}/conf_correct_mean": conf_stats['correct_mean'],
+                f"{prefix}/conf_correct_std": conf_stats['correct_std'],
+                f"{prefix}/conf_incorrect_mean": conf_stats['incorrect_mean'],
+                f"{prefix}/conf_incorrect_std": conf_stats['incorrect_std']
+            })
+            
+            # Log suggested thresholds if available
+            if 'suggested_thresholds' in stats:
+                thresholds = stats['suggested_thresholds']
+                run.log({
+                    f"{prefix}/suggested_threshold_p25": thresholds['p25'],
+                    f"{prefix}/suggested_threshold_p50": thresholds['p50'],
+                    f"{prefix}/suggested_threshold_p75": thresholds['p75']
+                })
+        
+        # Create and log confidence distribution plots
+        try:
+            fig = cm_object.plot_confidence_distributions(class_names)
+            run.log({"confidence_analysis/distributions": wandb.Image(fig)})
+            plt.close(fig)
+        except Exception as e:
+            print(f"Warning: Could not create confidence distribution plot: {e}")
+            
+    except Exception as e:
+        print(f"Warning: Could not log confidence analysis: {e}")
 
 
 def log_detailed_class_stats(
