@@ -1,3 +1,4 @@
+from typing import Dict
 import albumentations as A
 import os
 import cv2
@@ -6,7 +7,7 @@ from omegaconf import DictConfig
 os.environ["NO_ALBUMENTATIONS_UPDATE"] = "1"
 
 
-def get_transforms(cfg: DictConfig, id2label):
+def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Compose]:
     """
     Generates a dictionary of Albumentations transformations for training and testing.
     Args:
@@ -33,25 +34,39 @@ def get_transforms(cfg: DictConfig, id2label):
                         val_shift_limit=10,
                         p=0.6,
                     ),
-                    # A.ToGray(p=1.0),
                 ],
                 p=0.6,
             ),
             A.OneOf(
                 [
-                    A.RandomBrightnessContrast(ensure_safe_range=True,p=0.7),
+                    A.ToGray(p=0.05),
+                    A.ChannelDropout(channel_drop_range=(1, 2), p=0.1),
+                ],
+                p=0.2,
+            ),
+            A.OneOf(
+                [
+                    A.GaussianBlur(blur_limit=3, p=0.3),
+                    A.MedianBlur(blur_limit=3, p=0.3),
+                    A.GaussNoise(var_limit=(10, 50), p=0.3),
+                ],
+                p=0.4,
+            ),
+            A.OneOf(
+                [
+                    A.RandomBrightnessContrast(ensure_safe_range=True, p=0.7),
                     A.RandomToneCurve(p=0.7),
                 ],
                 p=0.5,
             ),
             A.ConstrainedCoarseDropout(
                 num_holes_range=(1, 2),
-                hole_height_range=(0.03, 0.1), 
-                hole_width_range=(0.03, 0.1),   
-                bbox_labels=[k for k, v in id2label.items() if v != "Cherry"],       
+                hole_height_range=(0.03, 0.1),
+                hole_width_range=(0.03, 0.1),
+                bbox_labels=[k for k, v in id2label.items() if v != "Cherry"],
                 fill=0,
-                p=0.2
-           ),
+                p=0.2,
+            ),
             A.CLAHE(clip_limit=2.0, p=0.3),
         ],
         bbox_params=A.BboxParams(
@@ -70,7 +85,7 @@ def get_transforms(cfg: DictConfig, id2label):
                 height=cfg.model.input_size,
                 width=cfg.model.input_size,
                 p=0.8,
-                erosion_rate=0.2,
+                erosion_rate=0.05,
             ),
             A.HorizontalFlip(p=0.5),
             A.RGBShift(
