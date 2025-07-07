@@ -47,23 +47,25 @@ class Trainer:
             test_dl (DataLoader): The testing dataloader.
             val_dl (DataLoader): The validation dataloader.
         """
-        self.model = model
-        self.device = device
+        self.model: nn.Module = model
+        self.device: torch.device = device
         self.scaler = GradScaler("cuda")
-        self.cfg = cfg
-        self.optimizer = self.get_optimizer()
-        self.processor = processor
-        self.name = name
-        self.early_stopping = EarlyStopping(
+        self.cfg: DictConfig = cfg
+        self.optimizer: torch.optim = self.get_optimizer()
+        self.processor: AutoImageProcessor = processor
+        self.name: str = name
+        self.early_stopping: EarlyStopping = EarlyStopping(
             cfg.patience, cfg.delta, "checkpoints", name, cfg, run
         )
-        self.scheduler = self.get_scheduler()
-        self.run = run
-        self.train_dl = train_dl
-        self.test_dl = test_dl
-        self.val_dl = val_dl
-        self.start_epoch = 0
-        self.accum_steps = self.cfg.effective_batch_size // self.cfg.step_batch_size
+        self.scheduler: SequentialLR = self.get_scheduler()
+        self.run: Run = run
+        self.train_dl: DataLoader = train_dl
+        self.test_dl: DataLoader = test_dl
+        self.val_dl: DataLoader = val_dl
+        self.start_epoch: int = 0
+        self.accum_steps: int = (
+            self.cfg.effective_batch_size // self.cfg.step_batch_size
+        )
         assert self.cfg.effective_batch_size % self.cfg.step_batch_size == 0, (
             f"effective_batch_size ({self.cfg.effective_batch_size}) must be divisible by batch_size "
             f"({self.accum_steps})."
@@ -205,7 +207,7 @@ class Trainer:
     def train(
         self,
         current_epoch: int,
-    ) -> float:
+    ) -> Tuple[float, float, float, torch.Tensor]:
         """
         Performs one epoch of training.
 
@@ -228,8 +230,6 @@ class Trainer:
         metric.warn_on_many_detections = False
         loss = 0.0
 
-        device_str = str(self.device).split(":")[0]
-
         progress_bar = tqdm(
             self.train_dl,
             desc=f"Epoch {current_epoch} Training",
@@ -241,7 +241,9 @@ class Trainer:
             batch = batch.to(self.device)
             batch = self.move_labels_to_device(batch)
 
-            with torch.autocast(device_type=device_str, dtype=torch.bfloat16):
+            with torch.autocast(
+                device_type=self.device.device_type, dtype=torch.bfloat16
+            ):
                 out = self.model(**batch)
                 batch_loss = out.loss / self.accum_steps
 
@@ -608,7 +610,7 @@ class Trainer:
         log_detection_confusion_matrix(self.run, cm, list(self.val_dl.dataset.labels))
         return log_data
 
-    def log_per_class_map(self, class_names, map_per_class, ds_type, log_data):
+    def log_per_class_map(self, class_names : List, map_per_class : torch.Tensor, ds_type : str, log_data : Dict) -> None:
         map_per_class = map_per_class.cpu()
         for i, name in enumerate(class_names):
             if i < len(map_per_class):
