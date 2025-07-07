@@ -48,7 +48,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                 [
                     A.GaussianBlur(blur_limit=3, p=0.3),
                     A.MedianBlur(blur_limit=3, p=0.3),
-                    A.GaussNoise(str_range=(0.2, 0.3), p=0.3),
+                    A.GaussNoise(std_range=(0.2, 0.3), p=0.3),
                 ],
                 p=0.4,
             ),
