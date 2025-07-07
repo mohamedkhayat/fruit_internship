@@ -26,10 +26,10 @@ def get_transforms(cfg: DictConfig, classes):
             A.HorizontalFlip(p=0.5),
             A.OneOf(
                 [
-                    A.RGBShift(20, 20, 20, p=0.5),
+                    A.RGBShift(15, 20, 15, p=0.5),
                     A.HueSaturationValue(
                         hue_shift_limit=10,
-                        sat_shift_limit=20,
+                        sat_shift_limit=15,
                         val_shift_limit=10,
                         p=0.6,
                     ),
