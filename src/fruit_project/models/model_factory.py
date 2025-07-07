@@ -90,7 +90,7 @@ def get_RTDETRv2(
 
     processor = AutoImageProcessor.from_pretrained(checkpoint, trust_remote_code=True)
 
-    transforms = get_transforms(cfg, id2label.values())
+    transforms = get_transforms(cfg, id2label)
 
     print("model loaded")
 

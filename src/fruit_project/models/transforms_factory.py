@@ -6,7 +6,7 @@ from omegaconf import DictConfig
 os.environ["NO_ALBUMENTATIONS_UPDATE"] = "1"
 
 
-def get_transforms(cfg: DictConfig, classes):
+def get_transforms(cfg: DictConfig, id2label):
     """
     Generates a dictionary of Albumentations transformations for training and testing.
     Args:
@@ -48,7 +48,7 @@ def get_transforms(cfg: DictConfig, classes):
                 num_holes_range=(1, 2),
                 hole_height_range=(0.03, 0.1), 
                 hole_width_range=(0.03, 0.1),   
-                bbox_labels=[cls for cls in classes if cls !="Cherry"],       
+                bbox_labels=[k for k, v in id2label.items() if v != "Cherry"],       
                 fill=0,
                 p=0.2
            ),
