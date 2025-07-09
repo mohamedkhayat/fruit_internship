@@ -16,7 +16,8 @@ patience : 15
 delta : 0.001
 num_workers : 4
 download_data : False
-lr_factor : 50
+lr_back_factor : 50
+lr_enc_dec_factor : 5
 load_ckpt : False
 checkpoint : False
 wait : False
@@ -32,7 +33,7 @@ freeze_backbone : True
 freeze_encoder : False
 partially_freeze_backbone : False
 
-# Confidence threshold settings for debugging detection issues  
+# Confidence threshold settings for debugging detection issues
 conf_threshold: 0.25  # Default confidence threshold
 iou_threshold: 0.45   # IoU threshold for matching detections to ground truth
 
@@ -40,6 +41,6 @@ iou_threshold: 0.45   # IoU threshold for matching detections to ground truth
 # Format: {class_id: threshold} where class_id is 0-indexed
 # Example for debugging cherry and pomegranate detection:
 #class_confidence_thresholds:
-  #0: 0.1   # Lower threshold for cherry (class 0) 
+  #0: 0.1   # Lower threshold for cherry (class 0)
   #1: 0.15  # Lower threshold for pomegranate (class 1)
   #2: 0.25  # Default for other classes
