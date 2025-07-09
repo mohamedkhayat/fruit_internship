@@ -15,7 +15,6 @@ from omegaconf import DictConfig
 from wandb.sdk.wandb_run import Run
 from typing import Dict, Tuple, List, Optional
 from fruit_project.utils.metrics import ConfusionMatrix
-from fruit_project.utils.trainer import Trainer
 
 
 def initwandb(cfg: DictConfig) -> Run:
@@ -322,7 +321,7 @@ def log_per_class_map(
             log_data[f"{ds_type}/map_50-95/{name}"] = map_per_class[i].item()
 
 
-def log_val_data(epoch: int, best_test_map: float, trainer: Trainer) -> None:
+def log_val_data(epoch: int, best_test_map: float, trainer) -> None:
     """
     Performs final validation, logs metrics, and logs it to wandb
 
@@ -372,7 +371,7 @@ def log_epoch_data(
     test_map50: float,
     test_loss: Dict[str, float],
     test_map_per_class: torch.Tensor,
-    trainer: Trainer,
+    trainer,
 ) -> None:
     """
     Constructs and logs a dictionary of metrics for logging at the end of an epoch.
