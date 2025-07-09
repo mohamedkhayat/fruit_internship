@@ -32,15 +32,3 @@ do_sample : True
 freeze_backbone : True
 freeze_encoder : False
 partially_freeze_backbone : False
-
-# Confidence threshold settings for debugging detection issues
-conf_threshold: 0.25  # Default confidence threshold
-iou_threshold: 0.45   # IoU threshold for matching detections to ground truth
-
-# Class-specific confidence thresholds (optional)
-# Format: {class_id: threshold} where class_id is 0-indexed
-# Example for debugging cherry and pomegranate detection:
-#class_confidence_thresholds:
-  #0: 0.1   # Lower threshold for cherry (class 0)
-  #1: 0.15  # Lower threshold for pomegranate (class 1)
-  #2: 0.25  # Default for other classes
