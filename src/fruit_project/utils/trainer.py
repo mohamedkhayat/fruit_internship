@@ -6,12 +6,6 @@ from torch.amp import GradScaler
 from tqdm import tqdm
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
 from omegaconf import DictConfig
-from fruit_project.utils.logging import (
-    log_checkpoint_artifact,
-    log_detection_confusion_matrix,
-    log_confidence_analysis,
-    log_detailed_class_stats,
-)
 from fruit_project.utils.early_stop import EarlyStopping
 from torch.optim.lr_scheduler import CosineAnnealingLR, SequentialLR, LinearLR
 from fruit_project.utils.metrics import ConfusionMatrix
@@ -20,6 +14,11 @@ import torch.nn as nn
 from wandb.sdk.wandb_run import Run
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
+from fruit_project.utils.logging import (
+    log_checkpoint_artifact,
+    log_detection_confusion_matrix,
+    log_per_class_map,
+)
 
 
 class Trainer:
@@ -102,31 +101,92 @@ class Trainer:
         Returns:
             AdamW: The optimizer.
         """
-        non_backbone_params = [
+        class_head_params = [
             p
             for n, p in self.model.named_parameters()
-            if "backbone" not in n and p.requires_grad
+            if any(
+                head in n
+                for head in ["class_embed", "enc_score_head", "denoising_class_embed"]
+            )
+            and p.requires_grad
         ]
 
+        # Backbone (pre-trained - lowest LR)
         backbone_params = [
             p
             for n, p in self.model.named_parameters()
             if "backbone" in n and p.requires_grad
         ]
 
+        # Encoder/Decoder (pre-trained but task-specific - medium LR)
+        encoder_decoder_params = [
+            p
+            for n, p in self.model.named_parameters()
+            if ("encoder" in n or "decoder" in n)
+            and not any(
+                head in n
+                for head in ["class_embed", "enc_score_head", "denoising_class_embed"]
+            )
+            and "backbone" not in n
+            and p.requires_grad
+        ]
+
+        # Everything else (bbox regression, etc. - base LR)
+        other_params = [
+            p
+            for n, p in self.model.named_parameters()
+            if not any(
+                component in n
+                for component in [
+                    "backbone",
+                    "encoder",
+                    "decoder",
+                    "class_embed",
+                    "enc_score_head",
+                    "denoising_class_embed",
+                ]
+            )
+            and p.requires_grad
+        ]
+
         param_dicts = []
 
-        if non_backbone_params:
-            param_dicts.append({"params": non_backbone_params})
-
-        if backbone_params:
-            param_dicts.append(
-                {"params": backbone_params, "lr": self.cfg.lr / self.cfg.lr_factor}
+        # Base LR for other parameters
+        if other_params:
+            param_dicts.append({"params": other_params, "lr": self.cfg.lr})
+            print(
+                f"Other params: {sum(p.numel() for p in other_params)} parameters at LR {self.cfg.lr}"
             )
 
-        optimizer = AdamW(
-            param_dicts, lr=self.cfg.lr, weight_decay=self.cfg.weight_decay
-        )
+        # Medium LR for encoder/decoder (half of base LR)
+        if encoder_decoder_params:
+            param_dicts.append(
+                {
+                    "params": encoder_decoder_params,
+                    "lr": self.cfg.lr / self.cfg.lr_enc_dec_factor,
+                }
+            )
+            print(
+                f"Encoder/Decoder params: {sum(p.numel() for p in encoder_decoder_params)} parameters at LR {self.cfg.lr / self.cfg.lr_enc_dec_factor}"
+            )
+
+        # Lowest LR for backbone
+        if backbone_params:
+            param_dicts.append(
+                {"params": backbone_params, "lr": self.cfg.lr / self.cfg.lr_back_factor}
+            )
+            print(
+                f"Backbone params: {sum(p.numel() for p in backbone_params)} parameters at LR {self.cfg.lr / self.cfg.lr_back_factor}"
+            )
+
+        # Highest LR for classification heads (base LR)
+        if class_head_params:
+            param_dicts.append({"params": class_head_params, "lr": self.cfg.lr})
+            print(
+                f"Classification head params: {sum(p.numel() for p in class_head_params)} parameters at LR {self.cfg.lr}"
+            )
+
+        optimizer = AdamW(param_dicts, weight_decay=self.cfg.weight_decay)
         return optimizer
 
     def move_labels_to_device(self, batch: BatchEncoding) -> BatchEncoding:
@@ -209,7 +269,7 @@ class Trainer:
     def train(
         self,
         current_epoch: int,
-    ) -> Tuple[float, float, float, torch.Tensor]:
+    ) -> Tuple[Dict[str, float], float, float, torch.Tensor]:
         """
         Performs one epoch of training.
 
@@ -230,7 +290,9 @@ class Trainer:
             class_metrics=True,
         )
         metric.warn_on_many_detections = False
-        loss = 0.0
+
+        epoch_loss = {"loss": 0.0}
+        epoch_loss.update({k: 0.0 for k in ["class_loss", "bbox_loss", "giou_loss"]})
 
         progress_bar = tqdm(
             self.train_dl,
@@ -246,6 +308,7 @@ class Trainer:
             with torch.autocast(device_type=self.device.type, dtype=torch.bfloat16):
                 out = self.model(**batch)
                 batch_loss = out.loss / self.accum_steps
+                loss_dict = out.loss_dict
 
             self.scaler.scale(batch_loss).backward()
 
@@ -256,9 +319,12 @@ class Trainer:
                 self.scaler.update()
                 self.optimizer.zero_grad()
 
-            loss += out.loss.item()
+            epoch_loss["loss"] += out.loss.item()
+            epoch_loss["class_loss"] += loss_dict["loss_vfl"].item()
+            epoch_loss["bbox_loss"] += loss_dict["loss_bbox"].item()
+            epoch_loss["giou_loss"] += loss_dict["loss_giou"].item()
 
-            current_avg_loss = loss / (batch_idx + 1)
+            current_avg_loss = epoch_loss["loss"] / (batch_idx + 1)
             progress_bar.set_postfix(
                 {
                     "Loss": f"{current_avg_loss:.4f}",
@@ -283,7 +349,8 @@ class Trainer:
         stats = metric.compute()
         metric.reset()
 
-        loss /= len(self.train_dl)
+        num_batches = len(self.train_dl)
+        epoch_loss = {k: v / num_batches for k, v in epoch_loss.items()}
         train_map, train_map50, train_map_per_class = (
             stats["map"].item(),
             stats["map_50"].item(),
@@ -292,7 +359,7 @@ class Trainer:
 
         tqdm.write(f"Epoch : {current_epoch}")
         tqdm.write(
-            f"\tTrain --- Loss: {loss:.4f}, mAP50-95: {train_map:.4f}, mAP@50 : {train_map50:.4f}"
+            f"\tTrain --- Loss: {epoch_loss['loss']:.4f}, Class Loss : {epoch_loss['class_loss']:.4f}, Bbox Loss : {epoch_loss['bbox_loss']:.4f}, Giou Loss : {epoch_loss['giou_loss']:.4f}, mAP50-95: {train_map:.4f}, mAP@50 : {train_map50:.4f}"
         )
 
         tqdm.write("\t--- Per-class mAP@50-95 ---")
@@ -304,12 +371,12 @@ class Trainer:
             if i < len(train_map_per_class):
                 tqdm.write(f"\t\t{class_name:<15}: {train_map_per_class[i].item():.4f}")
 
-        return loss, train_map, train_map50, train_map_per_class
+        return epoch_loss, train_map, train_map50, train_map_per_class
 
     @torch.no_grad()
     def eval(
         self, test_dl: DataLoader, current_epoch: int, calc_cm: bool = False
-    ) -> Tuple[float, float, float, torch.Tensor, Optional[ConfusionMatrix]]:
+    ) -> Tuple[Dict[str, float], float, float, torch.Tensor, Optional[ConfusionMatrix]]:
         """
         Evaluates the model on a given dataloader.
 
@@ -320,7 +387,7 @@ class Trainer:
 
         Returns:
             tuple: A tuple containing:
-                - loss (float): The average evaluation loss.
+                - loss (Dict): The evaluation loss.
                 - test_map (float): The mAP@.5-.95.
                 - test_map50 (float): The mAP@.50.
                 - test_map_50_per_class (torch.Tensor): The mAP@.50 for each class.
@@ -335,17 +402,13 @@ class Trainer:
             class_metrics=True,
         )
         metric.warn_on_many_detections = False
-        loss = 0.0
+
+        epoch_loss = {"loss": 0.0}
+        epoch_loss.update({k: 0.0 for k in ["class_loss", "bbox_loss", "giou_loss"]})
+
         if calc_cm:
-            # Get confidence thresholds from config if available
-            conf_thresholds = getattr(self.cfg, 'class_confidence_thresholds', None)
-            if conf_thresholds is None:
-                conf_thresholds = getattr(self.cfg, 'conf_threshold', 0.25)
-                
             cm = ConfusionMatrix(
-                nc=len(test_dl.dataset.labels), 
-                conf=conf_thresholds, 
-                iou_thres=getattr(self.cfg, 'iou_threshold', 0.45)
+                nc=len(test_dl.dataset.labels), conf=0.25, iou_thres=0.45
             )
         else:
             cm = None
@@ -363,10 +426,14 @@ class Trainer:
 
             out = self.model(**batch)
             batch_loss = out.loss
+            loss_dict = out.loss_dict
 
-            loss += batch_loss.item()
+            epoch_loss["loss"] += batch_loss.item()
+            epoch_loss["class_loss"] += loss_dict["loss_vfl"].item()
+            epoch_loss["bbox_loss"] += loss_dict["loss_bbox"].item()
+            epoch_loss["giou_loss"] += loss_dict["loss_giou"].item()
 
-            current_avg_loss = loss / (batch_idx + 1)
+            current_avg_loss = epoch_loss["loss"] / (batch_idx + 1)
 
             progress_bar.set_postfix(
                 {
@@ -418,7 +485,8 @@ class Trainer:
         stats = metric.compute()
         metric.reset()
 
-        loss /= len(test_dl)
+        num_batches = len(test_dl)
+        epoch_loss = {k: v / num_batches for k, v in epoch_loss.items()}
         test_map, test_map50, test_map_per_class = (
             stats["map"].item(),
             stats["map_50"].item(),
@@ -426,7 +494,7 @@ class Trainer:
         )
 
         tqdm.write(
-            f"\tEval  --- Loss: {loss:.4f}, mAP50-95: {test_map:.4f}, mAP@50 : {test_map50:.4f}"
+            f"\tEval  --- Loss: {epoch_loss['loss']:.4f}, Class Loss : {epoch_loss['class_loss']:.4f}, Bbox Loss : {epoch_loss['bbox_loss']:.4f}, Giou Loss : {epoch_loss['giou_loss']:.4f}, mAP50-95: {test_map:.4f}, mAP@50 : {test_map50:.4f}"
         )
 
         tqdm.write("\t--- Per-class mAP@50-95 ---")
@@ -438,7 +506,7 @@ class Trainer:
             if i < len(test_map_per_class):
                 tqdm.write(f"\t\t{class_name:<15}: {test_map_per_class[i].item():.4f}")
 
-        return loss, test_map, test_map50, test_map_per_class, cm
+        return epoch_loss, test_map, test_map50, test_map_per_class, cm
 
     def fit(self) -> None:
         """
@@ -538,13 +606,13 @@ class Trainer:
     def get_epoch_log_data(
         self,
         epoch: int,
-        train_loss: float,
+        train_loss: Dict[str, float],
         train_map: float,
         train_map50: float,
         train_map_per_class: torch.Tensor,
         test_map: float,
         test_map50: float,
-        test_loss: float,
+        test_loss: Dict[str, float],
         test_map_per_class: torch.Tensor,
     ) -> Dict[str, Any]:
         """
@@ -552,10 +620,10 @@ class Trainer:
 
         Args:
             epoch (int): The current epoch number.
-            train_loss (float): The training loss.
+            train_loss (Dict): Dict containing total, classification, bbox and giou training loss for epoch.
             test_map (float): The test mAP@.5-.95.
             test_map50 (float): The test mAP@.50.
-            test_loss (float): The test loss.
+            test_loss (Dict): Dict containing total, classification, bbox and giou test loss for epoch.
             test_map_per_class (torch.Tensor): The test mAP@.50 for each class.
 
         Returns:
@@ -563,19 +631,20 @@ class Trainer:
         """
         log_data = {
             "epoch": epoch,
-            "train/loss": train_loss,
             "train/map": train_map,
             "train/map 50": train_map50,
             "test/map": test_map,
             "test/map 50": test_map50,
-            "test/loss": test_loss,
             "Learning rate": float(f"{self.scheduler.get_last_lr()[0]:.6f}"),
         }
 
-        self.log_per_class_map(
+        log_data.update({f"train/{k}": v for k, v in train_loss.items()})
+        log_data.update({f"test/{k}": v for k, v in test_loss.items()})
+
+        log_per_class_map(
             self.test_dl.dataset.labels, test_map_per_class, "test", log_data
         )
-        self.log_per_class_map(
+        log_per_class_map(
             self.train_dl.dataset.labels, train_map_per_class, "train", log_data
         )
 
@@ -599,10 +668,11 @@ class Trainer:
         )
         log_data = {
             "test/best test map": best_test_map,
-            "val/loss": val_loss,
             "val/map": val_map,
             "val/map@50": val_map50,
         }
+
+        log_data.update({f"val/{k}": v for k, v in val_loss.items()})
 
         tqdm.write("\t--- Per-class mAP@50-95 ---")
         class_names = self.val_dl.dataset.labels
@@ -612,24 +682,8 @@ class Trainer:
                 log_data[f"val/map_50-95/{name}"] = map_per_class[i].item()
 
         tqdm.write(
-            f"\tVal  --- Loss: {val_loss:.4f}, mAP50-95: {val_map:.4f}, mAP@50 : {val_map50:.4f}"
+            f"\tVal  --- Loss: {val_loss['loss']:.4f}, mAP50-95: {val_map:.4f}, mAP@50 : {val_map50:.4f}"
         )
         log_detection_confusion_matrix(self.run, cm, list(self.val_dl.dataset.labels))
-        
-        # Log confidence analysis for debugging detection issues
-        log_confidence_analysis(self.run, cm, list(self.val_dl.dataset.labels))
-        log_detailed_class_stats(self.run, cm, list(self.val_dl.dataset.labels))
-        
-        return log_data
 
-    def log_per_class_map(
-        self,
-        class_names: List,
-        map_per_class: torch.Tensor,
-        ds_type: str,
-        log_data: Dict,
-    ) -> None:
-        map_per_class = map_per_class.cpu()
-        for i, name in enumerate(class_names):
-            if i < len(map_per_class):
-                log_data[f"{ds_type}/map_50-95/{name}"] = map_per_class[i].item()
+        return log_data
