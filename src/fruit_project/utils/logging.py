@@ -2,6 +2,7 @@ from collections import Counter
 from omegaconf import OmegaConf
 import pandas as pd
 import torch.nn as nn
+from tqdm import tqdm
 import wandb
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -14,6 +15,7 @@ from omegaconf import DictConfig
 from wandb.sdk.wandb_run import Run
 from typing import Dict, Tuple, List, Optional
 from fruit_project.utils.metrics import ConfusionMatrix
+from fruit_project.utils.trainer import Trainer
 
 
 def initwandb(cfg: DictConfig) -> Run:
@@ -318,3 +320,91 @@ def log_per_class_map(
     for i, name in enumerate(class_names):
         if i < len(map_per_class):
             log_data[f"{ds_type}/map_50-95/{name}"] = map_per_class[i].item()
+
+
+def log_val_data(epoch: int, best_test_map: float, trainer: Trainer) -> None:
+    """
+    Performs final validation, logs metrics, and logs it to wandb
+
+    Args:
+        epoch (int): The final epoch number.
+        best_test_map (float): The best test mAP@.50 achieved during training.
+
+    Returns:
+        None
+    """
+
+    trainer.model = trainer.early_stopping.get_best_model(trainer.model)
+    val_loss, val_map, val_map50, val_map_per_class, cm = trainer.eval(
+        trainer.val_dl, epoch + 1, calc_cm=True
+    )
+
+    log_data = {
+        "test/best test map": best_test_map,
+        "val/map": val_map,
+        "val/map@50": val_map50,
+    }
+
+    log_data.update({f"val/{k}": v for k, v in val_loss.items()})
+
+    tqdm.write("\t--- Per-class mAP@50-95 ---")
+    class_names = trainer.val_dl.dataset.labels
+    map_per_class = val_map_per_class.cpu()
+    for i, name in enumerate(class_names):
+        if i < len(map_per_class):
+            log_data[f"val/map_50-95/{name}"] = map_per_class[i].item()
+
+    tqdm.write(
+        f"\tVal  --- Loss: {val_loss['loss']:.4f}, mAP50-95: {val_map:.4f}, mAP@50 : {val_map50:.4f}"
+    )
+    log_detection_confusion_matrix(trainer.run, cm, list(trainer.val_dl.dataset.labels))
+
+    trainer.run.log(log_data)
+
+
+def log_epoch_data(
+    epoch: int,
+    train_loss: Dict[str, float],
+    train_map: float,
+    train_map50: float,
+    train_map_per_class: torch.Tensor,
+    test_map: float,
+    test_map50: float,
+    test_loss: Dict[str, float],
+    test_map_per_class: torch.Tensor,
+    trainer: Trainer,
+) -> None:
+    """
+    Constructs and logs a dictionary of metrics for logging at the end of an epoch.
+
+    Args:
+        epoch (int): The current epoch number.
+        train_loss (Dict): Dict containing total, classification, bbox and giou training loss for epoch.
+        test_map (float): The test mAP@.5-.95.
+        test_map50 (float): The test mAP@.50.
+        test_loss (Dict): Dict containing total, classification, bbox and giou test loss for epoch.
+        test_map_per_class (torch.Tensor): The test mAP@.50 for each class.
+        trainer (Trainer) : instance of Trainer class
+
+    Returns:
+        None
+    """
+    log_data = {
+        "epoch": epoch,
+        "train/map": train_map,
+        "train/map 50": train_map50,
+        "test/map": test_map,
+        "test/map 50": test_map50,
+        "Learning rate": float(f"{trainer.scheduler.get_last_lr()[0]:.6f}"),
+    }
+
+    log_data.update({f"train/{k}": v for k, v in train_loss.items()})
+    log_data.update({f"test/{k}": v for k, v in test_loss.items()})
+
+    log_per_class_map(
+        trainer.test_dl.dataset.labels, test_map_per_class, "test", log_data
+    )
+    log_per_class_map(
+        trainer.train_dl.dataset.labels, train_map_per_class, "train", log_data
+    )
+    trainer.run.log(log_data)

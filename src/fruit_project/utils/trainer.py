@@ -13,11 +13,11 @@ from transformers import AutoImageProcessor, BatchEncoding
 import torch.nn as nn
 from wandb.sdk.wandb_run import Run
 from torch.utils.data import DataLoader
-from torch.optim import AdamW
+from torch.optim import AdamW, Optimizer
 from fruit_project.utils.logging import (
     log_checkpoint_artifact,
-    log_detection_confusion_matrix,
-    log_per_class_map,
+    log_epoch_data,
+    log_val_data,
 )
 
 
@@ -52,7 +52,7 @@ class Trainer:
         self.device: torch.device = device
         self.scaler = GradScaler("cuda")
         self.cfg: DictConfig = cfg
-        self.optimizer: torch.optim = self.get_optimizer()
+        self.optimizer: Optimizer = self.get_optimizer()
         self.processor: AutoImageProcessor = processor
         self.name: str = name
         self.early_stopping: EarlyStopping = EarlyStopping(
@@ -539,7 +539,7 @@ class Trainer:
             best_test_map = max(test_map50, best_test_map)
 
             if self.cfg.log:
-                log_data = self.get_epoch_log_data(
+                log_epoch_data(
                     epoch,
                     train_loss,
                     train_map,
@@ -549,8 +549,8 @@ class Trainer:
                     test_map50,
                     test_loss,
                     test_map_per_class,
+                    self,
                 )
-                self.run.log(log_data)
 
             if self.early_stopping(test_map, self.model):
                 tqdm.write(f"Early stopping triggered at epoch {epoch + 1}.")
@@ -559,8 +559,7 @@ class Trainer:
         tqdm.write("Training finished.")
 
         if self.cfg.log:
-            log_data = self.get_val_log_data(epoch, best_test_map)
-            self.run.log(log_data)
+            log_val_data(epoch, best_test_map, self)
             self.run.finish()
 
         epoch_pbar.close()
@@ -602,88 +601,3 @@ class Trainer:
         self.scheduler.load_state_dict(ckpt["scheduler"])
         self.scaler.load_state_dict(ckpt["scaler"])
         self.start_epoch = ckpt["epoch"] + 1
-
-    def get_epoch_log_data(
-        self,
-        epoch: int,
-        train_loss: Dict[str, float],
-        train_map: float,
-        train_map50: float,
-        train_map_per_class: torch.Tensor,
-        test_map: float,
-        test_map50: float,
-        test_loss: Dict[str, float],
-        test_map_per_class: torch.Tensor,
-    ) -> Dict[str, Any]:
-        """
-        Constructs a dictionary of metrics for logging at the end of an epoch.
-
-        Args:
-            epoch (int): The current epoch number.
-            train_loss (Dict): Dict containing total, classification, bbox and giou training loss for epoch.
-            test_map (float): The test mAP@.5-.95.
-            test_map50 (float): The test mAP@.50.
-            test_loss (Dict): Dict containing total, classification, bbox and giou test loss for epoch.
-            test_map_per_class (torch.Tensor): The test mAP@.50 for each class.
-
-        Returns:
-            dict: A dictionary of metrics for logging.
-        """
-        log_data = {
-            "epoch": epoch,
-            "train/map": train_map,
-            "train/map 50": train_map50,
-            "test/map": test_map,
-            "test/map 50": test_map50,
-            "Learning rate": float(f"{self.scheduler.get_last_lr()[0]:.6f}"),
-        }
-
-        log_data.update({f"train/{k}": v for k, v in train_loss.items()})
-        log_data.update({f"test/{k}": v for k, v in test_loss.items()})
-
-        log_per_class_map(
-            self.test_dl.dataset.labels, test_map_per_class, "test", log_data
-        )
-        log_per_class_map(
-            self.train_dl.dataset.labels, train_map_per_class, "train", log_data
-        )
-
-        return log_data
-
-    def get_val_log_data(self, epoch: int, best_test_map: float) -> Dict[str, Any]:
-        """
-        Performs final validation, logs metrics, and returns the log data.
-
-        Args:
-            epoch (int): The final epoch number.
-            best_test_map (float): The best test mAP@.50 achieved during training.
-
-        Returns:
-            dict: A dictionary of validation metrics for logging.
-        """
-        self.model = self.early_stopping.get_best_model(self.model)
-
-        val_loss, val_map, val_map50, val_map_per_class, cm = self.eval(
-            self.val_dl, epoch + 1, calc_cm=True
-        )
-        log_data = {
-            "test/best test map": best_test_map,
-            "val/map": val_map,
-            "val/map@50": val_map50,
-        }
-
-        log_data.update({f"val/{k}": v for k, v in val_loss.items()})
-
-        tqdm.write("\t--- Per-class mAP@50-95 ---")
-        class_names = self.val_dl.dataset.labels
-        map_per_class = val_map_per_class.cpu()
-        for i, name in enumerate(class_names):
-            if i < len(map_per_class):
-                log_data[f"val/map_50-95/{name}"] = map_per_class[i].item()
-
-        tqdm.write(
-            f"\tVal  --- Loss: {val_loss['loss']:.4f}, mAP50-95: {val_map:.4f}, mAP@50 : {val_map50:.4f}"
-        )
-        log_detection_confusion_matrix(self.run, cm, list(self.val_dl.dataset.labels))
-
-        return log_data
