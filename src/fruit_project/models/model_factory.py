@@ -110,20 +110,16 @@ def freeze_weights(
     freeze_encoder=False,
 ) -> nn.Module:
     for name, param in model.named_parameters():
-        if (
-            freeze_backbone
-            and name.startswith("model.backbone")
-            and not (
-                partially_freeze_backbone
-                and name.startswith("model.backbone.model.encoder.stages.3.layers")
-            )
-        ):
+        param.requires_grad = True
+
+        if freeze_encoder and name.startswith("model.encoder"):
             param.requires_grad = False
 
-        elif freeze_encoder and name.startswith("model.encoder"):
+        if freeze_backbone and name.startswith("model.backbone"):
             param.requires_grad = False
-
-        else:
-            param.requires_grad = True
+            if partially_freeze_backbone and name.startswith(
+                "model.backbone.model.encoder.stages.3"
+            ):
+                param.requires_grad = True
 
     return model
