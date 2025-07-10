@@ -384,7 +384,7 @@ class Trainer:
             image_sizes = self.map_evaluator.collect_image_sizes(batch_targets)
 
             batch_preds_processed = self.map_evaluator.collect_predictions(
-                [out], image_sizes
+                out, image_sizes
             )
             batch_targets_processed = self.map_evaluator.collect_targets(
                 batch_targets, image_sizes
