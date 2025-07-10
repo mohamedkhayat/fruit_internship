@@ -1,5 +1,6 @@
 import functools
 import numpy as np
+from tqdm import tqdm
 from fruit_project.utils.datasets.det_dataset import DET_DS
 from torch.utils.data import DataLoader, WeightedRandomSampler
 from omegaconf import DictConfig
@@ -100,31 +101,49 @@ def make_datasets(cfg: DictConfig) -> Tuple[DET_DS, DET_DS, DET_DS]:
 def get_sampler(train_ds: DET_DS, strat: str, generator) -> WeightedRandomSampler:
     """
     Creates a WeightedRandomSampler for the training dataset.
-
-    Args:
-        train_ds (DET_DS): The training dataset.
-        strat (str): The strategy for weighting ('max' or 'mean').
-
-    Returns:
-        WeightedRandomSampler: A sampler for the training dataset.
+    Handles the new dataset format which returns a single dictionary.
     """
+    print("Creating weighted sampler...")
     class_counts: Counter = Counter()
-    for _, target in train_ds:
-        classes = {ann["category_id"] for ann in target["annotations"]}
-        class_counts.update(classes)
+
+    for label_path in tqdm(
+        train_ds.label_paths, desc="1/2: Counting classes for sampler"
+    ):
+        classes_in_image = set()
+        if os.path.exists(label_path):
+            with open(label_path, "r") as f:
+                for line in f:
+                    if line.strip():
+                        class_id = int(line.strip().split()[0])
+                        classes_in_image.add(class_id)
+        class_counts.update(classes_in_image)
+
+    if not class_counts:
+        print(
+            "Warning: No classes found in dataset for sampler. Using uniform sampling."
+        )
+        return None
 
     class_weights = {c: 1.0 / cnt for c, cnt in class_counts.items()}
 
     weights = []
-    for _, target in train_ds:
-        classes = {ann["category_id"] for ann in target["annotations"]}
-        if not classes:
-            weights.append(min(class_weights.values()))
+    for label_path in tqdm(train_ds.label_paths, desc="2/2: Assigning sample weights"):
+        classes_in_image = set()
+        if os.path.exists(label_path):
+            with open(label_path, "r") as f:
+                for line in f:
+                    if line.strip():
+                        class_id = int(line.strip().split()[0])
+                        classes_in_image.add(class_id)
+
+        if not classes_in_image:
+            weights.append(min(class_weights.values()) if class_weights else 1.0)
             continue
+
         if strat == "max":
-            weights.append(max(class_weights[c] for c in classes))  # maybe try mean
+            weights.append(max(class_weights[c] for c in classes_in_image))
         elif strat == "mean":
-            weights.append(np.mean([class_weights[c] for c in classes]))
+            weights.append(np.mean([class_weights[c] for c in classes_in_image]))
 
     weights = torch.tensor(weights, dtype=torch.double)
     sampler_generator = torch.Generator().manual_seed(generator.initial_seed() + 1)
@@ -132,7 +151,7 @@ def get_sampler(train_ds: DET_DS, strat: str, generator) -> WeightedRandomSample
     sampler = WeightedRandomSampler(
         weights, num_samples=len(weights), replacement=True, generator=sampler_generator
     )
-
+    print("Weighted sampler created.")
     return sampler
 
 
@@ -163,7 +182,10 @@ def make_dataloaders(
     print("making dataloaders")
 
     worker_init = functools.partial(seed_worker, base_seed=cfg.seed)
-    collate = functools.partial(collate_fn, processor=processor)
+    collate = functools.partial(collate_fn)
+
+    for ds in [train_ds, test_ds, val_ds]:
+        ds.processor = processor
 
     sampler = None
     if cfg.do_sample:
@@ -185,7 +207,7 @@ def make_dataloaders(
 
     test_dl = DataLoader(
         test_ds,
-        batch_size=cfg.step_batch_size,
+        batch_size=1,  # cfg.step_batch_size,
         num_workers=cfg.num_workers,
         persistent_workers=True,
         pin_memory=True,
@@ -196,7 +218,7 @@ def make_dataloaders(
 
     val_dl = DataLoader(
         val_ds,
-        batch_size=cfg.step_batch_size,
+        batch_size=1,  # cfg.step_batch_size,
         num_workers=cfg.num_workers,
         persistent_workers=True,
         pin_memory=True,
@@ -234,29 +256,20 @@ def get_labels_and_mappings(
     return labels, id2lbl, lbl2id
 
 
-def collate_fn(
-    batch: BatchEncoding, processor: AutoImageProcessor
-) -> Tuple[BatchEncoding, List]:
+def collate_fn(batch: BatchEncoding) -> Dict:
     """
     Collates a batch of data for the dataloader.
 
     Args:
         batch (BatchEncoding): A batch of data containing images and targets.
-        processor (AutoImageProcessor): Processor for image preprocessing.
 
     Returns:
         Tuple[BatchEncoding, List]: Processed batch and list of targets.
     """
-    imgs, targets = list(zip(*batch))
-    batch_processed = processor(
-        images=imgs,
-        annotations=targets,
-        return_tensors="pt",
-        do_resize=False,
-        do_pad=False,
-        do_normalize=True,
-    )
-    return (batch_processed, list(targets))
+    data = {}
+    data["pixel_values"] = torch.stack([x["pixel_values"] for x in batch])
+    data["labels"] = [x["labels"] for x in batch]
+    return data
 
 
 def set_transforms(
