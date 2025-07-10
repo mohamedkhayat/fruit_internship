@@ -300,7 +300,7 @@ class Trainer:
 
             if (batch_idx + 1) % self.accum_steps == 0:
                 self.scaler.unscale_(self.optimizer)
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.1)
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
                 self.optimizer.zero_grad()
@@ -436,7 +436,7 @@ class Trainer:
 
                     cm.process_batch(detections, labels)
 
-        tqdm.write("Computing mAP metrics with enhanced evaluator...")
+        tqdm.write("Computing mAP metrics")
         metrics = self.map_evaluator.map_metric.compute()
         test_map = metrics.get("map", 0.0)
         test_map50 = metrics.get("map_50", 0.0)
