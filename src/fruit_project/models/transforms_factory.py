@@ -27,7 +27,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
             A.SafeRotate(limit=0.1, p=0.3),
             A.OneOf(
                 [
-                    A.RGBShift(10, 15, 10, p=0.5),
+                    A.RGBShift(10, 10, 10, p=0.5),
                     A.HueSaturationValue(
                         hue_shift_limit=10,
                         sat_shift_limit=15,
@@ -35,45 +35,23 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                         p=0.6,
                     ),
                 ],
-                p=0.6,
+                p=0.2,
             ),
             A.OneOf(
                 [
-                    A.ToGray(p=0.05),
-                    A.ChannelDropout(channel_drop_range=(1, 2), p=0.1),
+                    A.Blur(blur_limit=7, p=0.5),
+                    A.MotionBlur(blur_limit=7, p=0.5),
+                    A.Defocus(radius=(1, 5), alias_blur=(0.1, 0.25), p=0.1),
                 ],
-                p=0.15,
+                p=0.2,
             ),
+            A.Perspective(p=0.1),
             A.OneOf(
                 [
-                    A.GaussianBlur(blur_limit=3, p=0.3),
-                    A.MedianBlur(blur_limit=3, p=0.3),
-                    A.GaussNoise(std_range=(0.2, 0.3), p=0.3),
-                ],
-                p=0.4,
-            ),
-            A.OneOf(
-                [
-                    A.RandomBrightnessContrast(ensure_safe_range=True, p=0.7),
+                    A.RandomBrightnessContrast(ensure_safe_range=True, p=0.8),
                     A.RandomToneCurve(p=0.7),
                 ],
                 p=0.5,
-            ),
-            A.ConstrainedCoarseDropout(
-                num_holes_range=(1, 3),
-                hole_height_range=(0.15, 0.2),
-                hole_width_range=(0.15, 0.2),
-                bbox_labels=[k for k, v in id2label.items() if v != "Cherry"],
-                fill=0,
-                p=0.2,
-            ),
-            A.ConstrainedCoarseDropout(
-                num_holes_range=(1, 2),
-                hole_height_range=(0.1, 0.15),
-                hole_width_range=(0.1, 0.15),
-                bbox_labels=[k for k, v in id2label.items() if v == "Cherry"],
-                fill=0,
-                p=0.2,
             ),
             A.CLAHE(clip_limit=2.0, p=0.3),
         ],
