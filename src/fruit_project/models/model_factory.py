@@ -89,7 +89,9 @@ def get_RTDETRv2(
         model, cfg.freeze_backbone, cfg.partially_freeze_backbone, cfg.freeze_encoder
     )
 
-    processor = AutoImageProcessor.from_pretrained(checkpoint, trust_remote_code=True)
+    processor = AutoImageProcessor.from_pretrained(
+        checkpoint, trust_remote_code=True, use_fast=True
+    )
 
     transforms = get_transforms(cfg, id2label)
 
