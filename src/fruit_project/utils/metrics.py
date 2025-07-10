@@ -1,9 +1,12 @@
-from typing import List
+from typing import Dict, List, Optional
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from torchvision.ops import box_iou
+from transformers.image_transforms import center_to_corners_format
+from dataclasses import dataclass
+from torchmetrics.detection.mean_ap import MeanAveragePrecision
 
 
 class ConfusionMatrix:
@@ -135,3 +138,146 @@ class ConfusionMatrix:
             torch.Tensor: The (nc + 1) x (nc + 1) confusion matrix.
         """
         return self.matrix
+
+
+@dataclass
+class ModelOutput:
+    logits: torch.Tensor
+    pred_boxes: torch.Tensor
+
+
+class MAPEvaluator:
+    """Mean Average Precision evaluator for RT-DETRv2 - adapted for fruit_project."""
+
+    def __init__(
+        self,
+        image_processor,
+        device,
+        threshold: float = 0.01,
+        id2label: Optional[Dict[int, str]] = None,
+    ):
+        self.image_processor = image_processor
+        self.threshold = threshold
+        self.id2label = id2label
+        self.map_metric = MeanAveragePrecision(
+            box_format="xyxy", class_metrics=True
+        ).to(device)
+        self.device = device
+
+    def collect_image_sizes(self, targets):
+        """Collect image sizes from targets."""
+        image_sizes = []
+
+        batch_image_sizes = []
+        for target in targets:
+            try:
+                if "size" in target:
+                    size = target["size"]
+                elif "orig_size" in target:
+                    size = target["orig_size"]
+                else:
+                    size = [480, 480]
+                    print("⚠️ Using fallback image size [480, 480]")
+
+                if torch.is_tensor(size):
+                    size = size.tolist()
+                batch_image_sizes.append(size)
+            except Exception as e:
+                print(f"⚠️ Error extracting size: {e}")
+                batch_image_sizes.append([480, 480])
+
+        image_sizes.append(torch.tensor(batch_image_sizes))
+        return image_sizes
+
+    def collect_targets(self, targets, image_sizes):
+        """Process ground truth targets - now handles HF-processed format."""
+        post_processed_targets = []
+
+        sizes = image_sizes[0] if image_sizes else []
+
+        for i, target in enumerate(targets):
+            if i < len(sizes):
+                height, width = sizes[i].tolist()
+            else:
+                height, width = 480, 480
+
+            if "boxes" in target and "class_labels" in target:
+                boxes = target["boxes"]
+                labels = target["class_labels"]
+
+                boxes = center_to_corners_format(boxes)
+
+                boxes[:, [0, 2]] *= width
+                boxes[:, [1, 3]] *= height
+
+                post_processed_targets.append({"boxes": boxes, "labels": labels})
+                continue
+
+            elif "annotations" in target:
+                annotations = target["annotations"]
+
+                if not annotations:
+                    post_processed_targets.append(
+                        {
+                            "boxes": torch.empty((0, 4), dtype=torch.float32),
+                            "labels": torch.empty((0,), dtype=torch.int64),
+                        }
+                    )
+                    continue
+
+                boxes_xywh = np.array(
+                    [ann["bbox"] for ann in annotations], dtype=np.float32
+                )
+                labels = np.array(
+                    [ann["category_id"] for ann in annotations], dtype=np.int64
+                )
+
+                boxes_xyxy = boxes_xywh.copy()
+                boxes_xyxy[:, 2] = boxes_xywh[:, 0] + boxes_xywh[:, 2]
+                boxes_xyxy[:, 3] = boxes_xywh[:, 1] + boxes_xywh[:, 3]
+
+                boxes = torch.tensor(boxes_xyxy, device=self.device)
+                labels = torch.tensor(labels, device=self.device)
+
+                post_processed_targets.append({"boxes": boxes, "labels": labels})
+
+            else:
+                post_processed_targets.append(
+                    {
+                        "boxes": torch.empty((0, 4), dtype=torch.float32),
+                        "labels": torch.empty((0,), dtype=torch.int64),
+                    }
+                )
+
+        return post_processed_targets
+
+    def collect_predictions(self, predictions, image_sizes):
+        """Process model predictions using HuggingFace post-processing."""
+        post_processed_predictions = []
+
+        target_sizes = image_sizes[0] if image_sizes else torch.tensor([[480, 480]])
+
+        for i, model_output in enumerate(predictions):
+            if i < len(target_sizes):
+                target_size = target_sizes[i : i + 1]
+            else:
+                target_size = torch.tensor([[480, 480]])
+
+            try:
+                post_processed_output = (
+                    self.image_processor.post_process_object_detection(
+                        model_output, threshold=self.threshold, target_sizes=target_size
+                    )
+                )
+                post_processed_predictions.extend(post_processed_output)
+            except Exception as e:
+                print(f"⚠️ Post-processing failed for prediction {i}: {e}")
+                post_processed_predictions.append(
+                    {
+                        "boxes": torch.empty((0, 4), dtype=torch.float32),
+                        "scores": torch.empty((0,), dtype=torch.float32),
+                        "labels": torch.empty((0,), dtype=torch.int64),
+                    }
+                )
+
+        return post_processed_predictions
