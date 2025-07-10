@@ -208,39 +208,17 @@ class MAPEvaluator:
 
                 boxes = center_to_corners_format(boxes)
 
+                if boxes.device != self.device:
+                    boxes = boxes.to(self.device)
+
+                if labels.device != self.device:
+                    labels = labels.to(self.device)
+
                 boxes[:, [0, 2]] *= width
                 boxes[:, [1, 3]] *= height
 
                 post_processed_targets.append({"boxes": boxes, "labels": labels})
                 continue
-
-            elif "annotations" in target:
-                annotations = target["annotations"]
-
-                if not annotations:
-                    post_processed_targets.append(
-                        {
-                            "boxes": torch.empty((0, 4), dtype=torch.float32),
-                            "labels": torch.empty((0,), dtype=torch.int64),
-                        }
-                    )
-                    continue
-
-                boxes_xywh = np.array(
-                    [ann["bbox"] for ann in annotations], dtype=np.float32
-                )
-                labels = np.array(
-                    [ann["category_id"] for ann in annotations], dtype=np.int64
-                )
-
-                boxes_xyxy = boxes_xywh.copy()
-                boxes_xyxy[:, 2] = boxes_xywh[:, 0] + boxes_xywh[:, 2]
-                boxes_xyxy[:, 3] = boxes_xywh[:, 1] + boxes_xywh[:, 3]
-
-                boxes = torch.tensor(boxes_xyxy, device=self.device)
-                labels = torch.tensor(labels, device=self.device)
-
-                post_processed_targets.append({"boxes": boxes, "labels": labels})
 
             else:
                 post_processed_targets.append(
