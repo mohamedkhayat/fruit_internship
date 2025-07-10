@@ -14,7 +14,6 @@ from torchvision.transforms.functional import to_pil_image
 from omegaconf import DictConfig
 from wandb.sdk.wandb_run import Run
 from typing import Dict, Tuple, List, Optional
-from fruit_project.utils.general import unnormalize
 from fruit_project.utils.metrics import ConfusionMatrix
 from transformers.image_transforms import center_to_corners_format
 
@@ -93,7 +92,7 @@ def log_images(
 
     for i in range(n):
         img = images[i]
-        img = unnormalize(img, mean, std).squeeze(0)
+        # img = unnormalize(img, mean, std).squeeze(0)
         tgt = targets[i]
 
         img_uint8 = (img * 255).to(torch.uint8)
@@ -173,7 +172,7 @@ def log_transforms(
 
     for i in range(n):
         img = images[i]
-        img = unnormalize(img, mean, std).squeeze(0)
+        # img = unnormalize(img, mean, std).squeeze(0)
         tgt = targets[i]
 
         img_uint8 = (img.clamp(0, 1) * 255).to(torch.uint8)
