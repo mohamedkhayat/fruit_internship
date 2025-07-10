@@ -1,14 +1,13 @@
 import os
 from typing import List, Tuple, Optional, Dict, Any
-import numpy as np
 import torch
 from torch.amp import GradScaler
 from tqdm import tqdm
-from torchmetrics.detection.mean_ap import MeanAveragePrecision
+from transformers.image_transforms import center_to_corners_format
 from omegaconf import DictConfig
 from fruit_project.utils.early_stop import EarlyStopping
 from torch.optim.lr_scheduler import CosineAnnealingLR, SequentialLR, LinearLR
-from fruit_project.utils.metrics import ConfusionMatrix
+from fruit_project.utils.metrics import ConfusionMatrix, MAPEvaluator
 from transformers import AutoImageProcessor, BatchEncoding
 import torch.nn as nn
 from wandb.sdk.wandb_run import Run
@@ -66,6 +65,12 @@ class Trainer:
         self.start_epoch: int = 0
         self.accum_steps: int = (
             self.cfg.effective_batch_size // self.cfg.step_batch_size
+        )
+        self.map_evaluator = MAPEvaluator(
+            image_processor=processor,
+            device=self.device,
+            threshold=0.01,
+            id2label=train_dl.dataset.id2lbl,
         )
         assert self.cfg.effective_batch_size % self.cfg.step_batch_size == 0, (
             f"effective_batch_size ({self.cfg.effective_batch_size}) must be divisible by batch_size "
@@ -222,54 +227,44 @@ class Trainer:
             return [self.nested_to_cpu(v) for v in obj]
         return obj
 
-    def format_targets_for_map(self, y: List) -> List:
+    def format_targets_for_cm(self, targets: List[Dict]) -> List[Dict]:
         """
-        Formats target annotations for MeanAveragePrecision metric calculation.
-
-        Args:
-            y (List): A list of target dictionaries.
-
-        Returns:
-            List: A list of formatted target dictionaries for the metric.
+        Formats raw targets for torchmetrics and confusion matrix.
+        This is a helper for the confusion matrix, as MAPEvaluator handles its own formatting.
         """
-        y_metric_format = []
-        for target_dict in y:
-            annotations = target_dict["annotations"]
-
-            if not annotations:
-                y_metric_format.append(
-                    {
-                        "boxes": torch.empty((0, 4), dtype=torch.float32),
-                        "labels": torch.empty((0,), dtype=torch.int64),
-                    }
+        formatted_targets = []
+        for target in targets:
+            if "boxes" in target and "class_labels" in target:
+                boxes = target["boxes"]
+                labels = target["class_labels"]
+                if boxes.shape[1] == 4:
+                    boxes = center_to_corners_format(boxes)
+            elif "annotations" in target:
+                boxes_xywh = torch.tensor(
+                    [ann["bbox"] for ann in target["annotations"]]
                 )
-                continue
+                labels = torch.tensor(
+                    [ann["category_id"] for ann in target["annotations"]]
+                )
+                boxes = boxes_xywh.clone()
+                boxes[:, 2] = boxes_xywh[:, 0] + boxes_xywh[:, 2]
+                boxes[:, 3] = boxes_xywh[:, 1] + boxes_xywh[:, 3]
+            else:
+                boxes = torch.empty((0, 4))
+                labels = torch.empty((0,))
 
-            boxes_xywh = np.array(
-                [ann["bbox"] for ann in annotations], dtype=np.float32
-            )
-            labels = np.array(
-                [ann["category_id"] for ann in annotations], dtype=np.int64
-            )
-
-            # Convert from [x, y, w, h] to [x1, y1, x2, y2]
-            boxes_xyxy = boxes_xywh.copy()
-            boxes_xyxy[:, 2] = boxes_xywh[:, 0] + boxes_xywh[:, 2]  # x2 = x1 + w
-            boxes_xyxy[:, 3] = boxes_xywh[:, 1] + boxes_xywh[:, 3]  # y2 = y1 + h
-            boxes = boxes_xyxy
-
-            y_metric_format.append(
+            formatted_targets.append(
                 {
-                    "boxes": torch.from_numpy(boxes),
-                    "labels": torch.from_numpy(labels),
+                    "boxes": boxes.cpu(),
+                    "labels": labels.cpu(),
                 }
             )
-        return y_metric_format
+        return formatted_targets
 
     def train(
         self,
         current_epoch: int,
-    ) -> Tuple[Dict[str, float], float, float, torch.Tensor]:
+    ) -> Dict[str, float]:
         """
         Performs one epoch of training.
 
@@ -282,15 +277,6 @@ class Trainer:
         self.model.train()
         self.optimizer.zero_grad(set_to_none=True)
 
-        metric = MeanAveragePrecision(
-            box_format="xyxy",
-            average="macro",
-            max_detection_thresholds=[1, 10, 100],
-            iou_thresholds=None,
-            class_metrics=True,
-        )
-        metric.warn_on_many_detections = False
-
         epoch_loss = {"loss": 0.0}
         epoch_loss.update({k: 0.0 for k in ["class_loss", "bbox_loss", "giou_loss"]})
 
@@ -301,8 +287,8 @@ class Trainer:
             bar_format="{l_bar}{bar:30}{r_bar}{bar:-30b}",
         )
 
-        for batch_idx, (batch, y) in enumerate(progress_bar):
-            batch = batch.to(self.device)
+        for batch_idx, batch in enumerate(progress_bar):
+            batch["pixel_values"] = batch["pixel_values"].to(self.device)
             batch = self.move_labels_to_device(batch)
 
             with torch.autocast(device_type=self.device.type, dtype=torch.bfloat16):
@@ -331,47 +317,16 @@ class Trainer:
                     "Batch": f"{batch_idx + 1}/{len(self.train_dl)}",
                 }
             )
-            sizes = torch.stack([t["orig_size"] for t in y])
-            preds = self.processor.post_process_object_detection(
-                out, threshold=0.001, target_sizes=sizes
-            )
-
-            preds = self.nested_to_cpu(preds)
-            targets_for_map = self.format_targets_for_map(y)
-            preds_for_map = [p.copy() for p in preds]
-            for p in preds_for_map:
-                topk = p["scores"].argsort(descending=True)[:300]
-                for k in ("boxes", "scores", "labels"):
-                    p[k] = p[k][topk]
-
-            metric.update(preds_for_map, targets_for_map)
-
-        stats = metric.compute()
-        metric.reset()
 
         num_batches = len(self.train_dl)
         epoch_loss = {k: v / num_batches for k, v in epoch_loss.items()}
-        train_map, train_map50, train_map_per_class = (
-            stats["map"].item(),
-            stats["map_50"].item(),
-            stats["map_per_class"],
-        )
 
         tqdm.write(f"Epoch : {current_epoch}")
         tqdm.write(
-            f"\tTrain --- Loss: {epoch_loss['loss']:.4f}, Class Loss : {epoch_loss['class_loss']:.4f}, Bbox Loss : {epoch_loss['bbox_loss']:.4f}, Giou Loss : {epoch_loss['giou_loss']:.4f}, mAP50-95: {train_map:.4f}, mAP@50 : {train_map50:.4f}"
+            f"\tTrain --- Loss: {epoch_loss['loss']:.4f}, Class Loss : {epoch_loss['class_loss']:.4f}, Bbox Loss : {epoch_loss['bbox_loss']:.4f}, Giou Loss : {epoch_loss['giou_loss']:.4f}"
         )
 
-        tqdm.write("\t--- Per-class mAP@50-95 ---")
-        class_names = self.train_dl.dataset.labels
-        if train_map_per_class.is_cuda:
-            train_map_per_class = train_map_per_class.cpu()
-
-        for i, class_name in enumerate(class_names):
-            if i < len(train_map_per_class):
-                tqdm.write(f"\t\t{class_name:<15}: {train_map_per_class[i].item():.4f}")
-
-        return epoch_loss, train_map, train_map50, train_map_per_class
+        return epoch_loss
 
     @torch.no_grad()
     def eval(
@@ -394,14 +349,6 @@ class Trainer:
                 - cm (ConfusionMatrix | None): The confusion matrix if calc_cm is True, else None.
         """
         self.model.eval()
-        metric = MeanAveragePrecision(
-            box_format="xyxy",
-            average="macro",
-            max_detection_thresholds=[1, 10, 100],
-            iou_thresholds=None,
-            class_metrics=True,
-        )
-        metric.warn_on_many_detections = False
 
         epoch_loss = {"loss": 0.0}
         epoch_loss.update({k: 0.0 for k in ["class_loss", "bbox_loss", "giou_loss"]})
@@ -420,8 +367,8 @@ class Trainer:
             bar_format="{l_bar}{bar:30}{r_bar}{bar:-30b}",
         )
 
-        for batch_idx, (batch, y) in enumerate(progress_bar):
-            batch = batch.to(self.device)
+        for batch_idx, batch in enumerate(progress_bar):
+            batch["pixel_values"] = batch["pixel_values"].to(self.device)
             batch = self.move_labels_to_device(batch)
 
             out = self.model(**batch)
@@ -433,6 +380,20 @@ class Trainer:
             epoch_loss["bbox_loss"] += loss_dict["loss_bbox"].item()
             epoch_loss["giou_loss"] += loss_dict["loss_giou"].item()
 
+            batch_targets = batch["labels"]
+            image_sizes = self.map_evaluator.collect_image_sizes(batch_targets)
+
+            batch_preds_processed = self.map_evaluator.collect_predictions(
+                [out], image_sizes
+            )
+            batch_targets_processed = self.map_evaluator.collect_targets(
+                batch_targets, image_sizes
+            )
+
+            self.map_evaluator.map_metric.update(
+                batch_preds_processed, batch_targets_processed
+            )
+
             current_avg_loss = epoch_loss["loss"] / (batch_idx + 1)
 
             progress_bar.set_postfix(
@@ -441,22 +402,15 @@ class Trainer:
                     "Batch": f"{batch_idx + 1}/{len(test_dl)}",
                 }
             )
-            sizes = torch.stack([t["orig_size"] for t in y])
-            preds = self.processor.post_process_object_detection(
-                out, threshold=0.001, target_sizes=sizes
-            )
-
-            preds = self.nested_to_cpu(preds)
-            targets_for_map = self.format_targets_for_map(y)
-            preds_for_map = [p.copy() for p in preds]
-            for p in preds_for_map:
-                topk = p["scores"].argsort(descending=True)[:300]
-                for k in ("boxes", "scores", "labels"):
-                    p[k] = p[k][topk]
-
-            metric.update(preds_for_map, targets_for_map)
-
             if calc_cm and cm:
+                sizes = torch.stack([torch.tensor(t["size"]) for t in batch["labels"]])
+
+                preds = self.processor.post_process_object_detection(
+                    out, threshold=0.01, target_sizes=sizes
+                )
+                preds = self.nested_to_cpu(preds)
+                targets_for_map = self.format_targets_for_cm(batch["labels"])
+
                 for i in range(len(preds)):
                     pred_item = preds[i]
                     gt_item = targets_for_map[i]
@@ -482,16 +436,27 @@ class Trainer:
 
                     cm.process_batch(detections, labels)
 
-        stats = metric.compute()
-        metric.reset()
+        tqdm.write("Computing mAP metrics with enhanced evaluator...")
+        metrics = self.map_evaluator.map_metric.compute()
+        test_map = metrics.get("map", 0.0)
+        test_map50 = metrics.get("map_50", 0.0)
+
+        per_class_maps = []
+        class_names = test_dl.dataset.labels
+        if "classes" in metrics and "map_per_class" in metrics:
+            class_map_dict = {
+                c.item(): m.item()
+                for c, m in zip(metrics["classes"], metrics["map_per_class"])
+            }
+            for i in range(len(class_names)):
+                per_class_maps.append(class_map_dict.get(i, 0.0))
+        else:
+            per_class_maps = [0.0] * len(class_names)
+
+        test_map_per_class = torch.tensor(per_class_maps)
 
         num_batches = len(test_dl)
         epoch_loss = {k: v / num_batches for k, v in epoch_loss.items()}
-        test_map, test_map50, test_map_per_class = (
-            stats["map"].item(),
-            stats["map_50"].item(),
-            stats["map_per_class"],
-        )
 
         tqdm.write(
             f"\tEval  --- Loss: {epoch_loss['loss']:.4f}, Class Loss : {epoch_loss['class_loss']:.4f}, Bbox Loss : {epoch_loss['bbox_loss']:.4f}, Giou Loss : {epoch_loss['giou_loss']:.4f}, mAP50-95: {test_map:.4f}, mAP@50 : {test_map50:.4f}"
@@ -524,7 +489,7 @@ class Trainer:
                     self.run, ckpt_path, self.cfg.model.name, epoch, self.cfg.wait
                 )
 
-            train_loss, train_map, train_map50, train_map_per_class = self.train(
+            train_loss = self.train(
                 epoch + 1,
             )
 
@@ -542,9 +507,6 @@ class Trainer:
                 log_epoch_data(
                     epoch,
                     train_loss,
-                    train_map,
-                    train_map50,
-                    train_map_per_class,
                     test_map,
                     test_map50,
                     test_loss,
