@@ -24,6 +24,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                 p=1.0,
             ),
             A.HorizontalFlip(p=0.5),
+            A.SafeRotate(limit=0.1, p=0.3),
             A.OneOf(
                 [
                     A.RGBShift(10, 15, 10, p=0.5),
