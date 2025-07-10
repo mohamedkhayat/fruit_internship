@@ -1,6 +1,5 @@
 import random
 import numpy as np
-import torch
 from torch.utils.data import Dataset
 import pathlib
 import cv2
@@ -55,6 +54,7 @@ class DET_DS(Dataset):
         config_file: str,
         transforms: Compose = None,
         input_size: int = 224,
+        processor=None,
     ):
         self.root_dir = pathlib.Path("data", root_dir)
         self.type = type
@@ -63,7 +63,8 @@ class DET_DS(Dataset):
         self.transforms = transforms
         self.input_size = input_size
         self.config_dir = self.root_dir / config_file
-
+        self.processor = processor
+        self.label_paths = []
         raw_paths = sorted(list(pathlib.Path(self.image_dir).glob("*.jpg")))
         num_dropped = 0
         valid = []
@@ -71,6 +72,7 @@ class DET_DS(Dataset):
             label_path = pathlib.Path(self.label_dir) / (p.stem + ".txt")
             if cv2.imread(str(p)) is not None and label_path.exists():
                 valid.append(p)
+                self.label_paths.append(label_path)
             else:
                 num_dropped += 1
                 if cv2.imread(str(p)) is None:
@@ -156,6 +158,14 @@ class DET_DS(Dataset):
                 }
                 for box, label in zip(boxes, labels)
             ],
-            "orig_size": torch.tensor([height, width]),
         }
-        return img, target
+        if hasattr(self, "processor") and self.processor:
+            result = self.processor(
+                images=img,
+                annotations=target,
+                return_tensors="pt",
+            )
+            result = {k: v[0] for k, v in result.items()}
+            return result
+        else:
+            raise AttributeError("No Processor in dataset")
