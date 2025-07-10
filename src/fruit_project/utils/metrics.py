@@ -254,31 +254,13 @@ class MAPEvaluator:
 
     def collect_predictions(self, predictions, image_sizes):
         """Process model predictions using HuggingFace post-processing."""
-        post_processed_predictions = []
 
-        target_sizes = image_sizes[0] if image_sizes else torch.tensor([[480, 480]])
+        target_sizes = image_sizes[0] if image_sizes else torch.empty((0, 2))
 
-        for i, model_output in enumerate(predictions):
-            if i < len(target_sizes):
-                target_size = target_sizes[i : i + 1]
-            else:
-                target_size = torch.tensor([[480, 480]])
-
-            try:
-                post_processed_output = (
-                    self.image_processor.post_process_object_detection(
-                        model_output, threshold=self.threshold, target_sizes=target_size
-                    )
-                )
-                post_processed_predictions.extend(post_processed_output)
-            except Exception as e:
-                print(f"⚠️ Post-processing failed for prediction {i}: {e}")
-                post_processed_predictions.append(
-                    {
-                        "boxes": torch.empty((0, 4), dtype=torch.float32),
-                        "scores": torch.empty((0,), dtype=torch.float32),
-                        "labels": torch.empty((0,), dtype=torch.int64),
-                    }
-                )
+        post_processed_predictions = self.image_processor.post_process_object_detection(
+            predictions,
+            threshold=self.threshold,
+            target_sizes=target_sizes,
+        )
 
         return post_processed_predictions
