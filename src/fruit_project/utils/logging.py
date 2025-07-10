@@ -1,4 +1,5 @@
 from collections import Counter
+import numpy as np
 from omegaconf import OmegaConf
 import pandas as pd
 import torch.nn as nn
@@ -96,24 +97,28 @@ def log_images(
 
         img_uint8 = (img * 255).to(torch.uint8)
 
-        boxes = []
-        labels = []
+        if "boxes" in tgt and "class_labels" in tgt:
+            boxes_cywh = tgt["boxes"]
 
-        boxes_cywh = tgt["boxes"]
-        boxes_xyxy = center_to_corners_format(boxes_cywh)
-        # Scale boxes to image dimensions if they are normalized
-        if boxes_xyxy.max() <= 1.0:
-            h, w = img_uint8.shape[1:]
-            boxes_xyxy[:, [0, 2]] *= w
-            boxes_xyxy[:, [1, 3]] *= h
+            if boxes_cywh.numel() == 0:
+                boxes_to_draw = torch.empty((0, 4), dtype=torch.long)
+            else:
+                boxes_xyxy = center_to_corners_format(boxes_cywh)
+                if boxes_xyxy.max() <= 1.0:
+                    h, w = img_uint8.shape[1:]
+                    boxes_xyxy[:, [0, 2]] *= w
+                    boxes_xyxy[:, [1, 3]] *= h
+                boxes_to_draw = boxes_xyxy.long()
 
-            boxes = boxes_xyxy.long().tolist()
             labels = [str(id2lbl[int(lbl)]) for lbl in tgt["class_labels"]]
+        else:
+            boxes_to_draw = torch.empty((0, 4), dtype=torch.long)
+            labels = []
 
         annotated = draw_bounding_boxes(
             img_uint8,
-            boxes=torch.tensor(boxes, dtype=torch.int64),
-            labels=labels,
+            boxes=boxes_to_draw,
+            labels=np.array(labels),
             colors="red",
             width=2,
             font="fonts/FiraCodeNerdFont-Bold.ttf",
@@ -172,24 +177,28 @@ def log_transforms(
 
         img_uint8 = (img.clamp(0, 1) * 255).to(torch.uint8)
 
-        boxes = []
-        labels = []
+        if "boxes" in tgt and "class_labels" in tgt:
+            boxes_cywh = tgt["boxes"]
 
-        boxes_cywh = tgt["boxes"]
-        boxes_xyxy = center_to_corners_format(boxes_cywh)
+            if boxes_cywh.numel() == 0:
+                boxes_to_draw = torch.empty((0, 4), dtype=torch.long)
+            else:
+                boxes_xyxy = center_to_corners_format(boxes_cywh)
+                if boxes_xyxy.max() <= 1.0:
+                    h, w = img_uint8.shape[1:]
+                    boxes_xyxy[:, [0, 2]] *= w
+                    boxes_xyxy[:, [1, 3]] *= h
+                boxes_to_draw = boxes_xyxy.long()
 
-        if boxes_xyxy.max() <= 1.0:
-            h, w = img_uint8.shape[1:]
-            boxes_xyxy[:, [0, 2]] *= w
-            boxes_xyxy[:, [1, 3]] *= h
-
-            boxes = boxes_xyxy.long().tolist()
             labels = [str(id2lbl[int(lbl)]) for lbl in tgt["class_labels"]]
+        else:
+            boxes_to_draw = torch.empty((0, 4), dtype=torch.long)
+            labels = []
 
         annotated = draw_bounding_boxes(
             img_uint8,
-            boxes=torch.tensor(boxes, dtype=torch.int64),
-            labels=labels,
+            boxes=boxes_to_draw,
+            labels=np.array(labels),
             colors="red",
             width=2,
             font="fonts/FiraCodeNerdFont-Bold.ttf",
