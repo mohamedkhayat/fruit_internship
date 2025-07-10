@@ -139,10 +139,12 @@ class DET_DS(Dataset):
                 boxes.append([x1, y1, box_w, box_h])
                 labels.append(int(cls))
 
+        boxes, labels = (
+            np.array(boxes, dtype=np.float32),
+            np.array(labels, dtype=np.int64),
+        )
         if self.transforms:
-            augmented = self.transforms(
-                image=img, bboxes=np.array(boxes), labels=np.array(labels)
-            )
+            augmented = self.transforms(image=img, bboxes=boxes, labels=labels)
             img = augmented["image"]
             boxes = augmented["bboxes"]
             labels = augmented["labels"]
@@ -151,7 +153,7 @@ class DET_DS(Dataset):
             "image_id": idx,
             "annotations": [
                 {
-                    "bbox": box,
+                    "bbox": box.tolist(),
                     "category_id": label,
                     "area": box[2] * box[3],
                     "iscrowd": 0,
