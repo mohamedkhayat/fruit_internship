@@ -1,7 +1,6 @@
 from typing import Dict
 import albumentations as A
 import os
-import cv2
 from omegaconf import DictConfig
 
 os.environ["NO_ALBUMENTATIONS_UPDATE"] = "1"
@@ -129,16 +128,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
     transforms = {
         "train": hard_train_transforms if cfg.aug == "hard" else safe_train_transforms,
         "test": A.Compose(
-            [
-                A.LongestMaxSize(max_size=cfg.model.input_size, p=1.0),
-                A.PadIfNeeded(
-                    min_height=cfg.model.input_size,
-                    min_width=cfg.model.input_size,
-                    border_mode=cv2.BORDER_CONSTANT,
-                    fill=0,
-                    p=1.0,
-                ),
-            ],
+            [A.NoOp()],
             bbox_params=A.BboxParams(
                 format="coco",
                 label_fields=["labels"],
