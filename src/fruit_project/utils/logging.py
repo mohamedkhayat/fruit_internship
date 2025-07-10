@@ -10,11 +10,11 @@ import time
 import torch
 from torchvision.utils import draw_bounding_boxes
 from torchvision.transforms.functional import to_pil_image
-from fruit_project.utils.general import unnormalize
 from omegaconf import DictConfig
 from wandb.sdk.wandb_run import Run
 from typing import Dict, Tuple, List, Optional
 from fruit_project.utils.metrics import ConfusionMatrix
+from transformers.image_transforms import center_to_corners_format
 
 
 def initwandb(cfg: DictConfig) -> Run:
@@ -61,7 +61,7 @@ def get_run_name(cfg: DictConfig) -> str:
 
 def log_images(
     run: Run,
-    batch: Tuple[Dict, List],
+    batch: Dict,
     id2lbl: Dict,
     grid_size: Tuple[int, int] = (3, 3),
     mean: Optional[torch.Tensor] = None,
@@ -78,8 +78,8 @@ def log_images(
         mean (Optional[torch.Tensor], optional): The mean used for normalization. Defaults to None.
         std (Optional[torch.Tensor], optional): The standard deviation used for normalization. Defaults to None.
     """
-    processed_batch, targets = batch
-    images = processed_batch["pixel_values"].detach().clone()
+    images = batch["pixel_values"].detach().clone()
+    targets = batch["labels"]
     n_rows, n_cols = grid_size
     max_plots = n_rows * n_cols
     n = min(len(images), max_plots)
@@ -91,7 +91,7 @@ def log_images(
 
     for i in range(n):
         img = images[i]
-        img = unnormalize(img, mean, std).squeeze(0)
+        # img = unnormalize(img, mean, std).squeeze(0)
         tgt = targets[i]
 
         img_uint8 = (img * 255).to(torch.uint8)
@@ -99,10 +99,16 @@ def log_images(
         boxes = []
         labels = []
 
-        for ann in tgt["annotations"]:
-            x, y, w, h = ann["bbox"]
-            boxes.append([x, y, x + w, y + h])
-            labels.append(str(id2lbl[int(ann["category_id"])]))
+        boxes_cywh = tgt["boxes"]
+        boxes_xyxy = center_to_corners_format(boxes_cywh)
+        # Scale boxes to image dimensions if they are normalized
+        if boxes_xyxy.max() <= 1.0:
+            h, w = img_uint8.shape[1:]
+            boxes_xyxy[:, [0, 2]] *= w
+            boxes_xyxy[:, [1, 3]] *= h
+
+            boxes = boxes_xyxy.long().tolist()
+            labels = [str(id2lbl[int(lbl)]) for lbl in tgt["class_labels"]]
 
         annotated = draw_bounding_boxes(
             img_uint8,
@@ -129,7 +135,7 @@ def log_images(
 
 def log_transforms(
     run: Run,
-    batch: Tuple[Dict, List],
+    batch: Dict,
     grid_size: Tuple[int, int],
     id2lbl: Dict[int, str],
     transforms: Optional[Dict] = None,
@@ -148,8 +154,8 @@ def log_transforms(
         mean (Optional[torch.Tensor], optional): The mean used for normalization. Defaults to None.
         std (Optional[torch.Tensor], optional): The standard deviation used for normalization. Defaults to None.
     """
-    processed_batch, targets = batch
-    images = processed_batch["pixel_values"].detach().clone()
+    images = batch["pixel_values"].detach().clone()
+    targets = batch["labels"]
     n_rows, n_cols = grid_size
     max_plots = n_rows * n_cols
     n = min(len(images), max_plots)
@@ -161,7 +167,7 @@ def log_transforms(
 
     for i in range(n):
         img = images[i]
-        img = unnormalize(img, mean, std).squeeze(0)
+        # img = unnormalize(img, mean, std).squeeze(0)
         tgt = targets[i]
 
         img_uint8 = (img.clamp(0, 1) * 255).to(torch.uint8)
@@ -169,10 +175,16 @@ def log_transforms(
         boxes = []
         labels = []
 
-        for ann in tgt["annotations"]:
-            x, y, w, h = ann["bbox"]
-            boxes.append([x, y, x + w, y + h])
-            labels.append(str(id2lbl[int(ann["category_id"])]))
+        boxes_cywh = tgt["boxes"]
+        boxes_xyxy = center_to_corners_format(boxes_cywh)
+
+        if boxes_xyxy.max() <= 1.0:
+            h, w = img_uint8.shape[1:]
+            boxes_xyxy[:, [0, 2]] *= w
+            boxes_xyxy[:, [1, 3]] *= h
+
+            boxes = boxes_xyxy.long().tolist()
+            labels = [str(id2lbl[int(lbl)]) for lbl in tgt["class_labels"]]
 
         annotated = draw_bounding_boxes(
             img_uint8,
@@ -364,9 +376,6 @@ def log_val_data(epoch: int, best_test_map: float, trainer) -> None:
 def log_epoch_data(
     epoch: int,
     train_loss: Dict[str, float],
-    train_map: float,
-    train_map50: float,
-    train_map_per_class: torch.Tensor,
     test_map: float,
     test_map50: float,
     test_loss: Dict[str, float],
@@ -390,8 +399,6 @@ def log_epoch_data(
     """
     log_data = {
         "epoch": epoch,
-        "train/map": train_map,
-        "train/map 50": train_map50,
         "test/map": test_map,
         "test/map 50": test_map50,
         "Learning rate": float(f"{trainer.scheduler.get_last_lr()[0]:.6f}"),
@@ -402,8 +409,5 @@ def log_epoch_data(
 
     log_per_class_map(
         trainer.test_dl.dataset.labels, test_map_per_class, "test", log_data
-    )
-    log_per_class_map(
-        trainer.train_dl.dataset.labels, train_map_per_class, "train", log_data
     )
     trainer.run.log(log_data)
