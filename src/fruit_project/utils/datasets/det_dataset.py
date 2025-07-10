@@ -166,6 +166,8 @@ class DET_DS(Dataset):
                 images=img,
                 annotations=target,
                 return_tensors="pt",
+                do_normalize=True,
+                do_pad=True,
             )
             result = {k: v[0] for k, v in result.items()}
             return result
