@@ -188,7 +188,7 @@ class Trainer:
         if class_head_params:
             param_dicts.append({"params": class_head_params, "lr": self.cfg.lr})
             print(
-                f"Classification head params: {sum(p.numel() for p in class_head_params)} parameters at LR {self.cfg.lr}"
+                f"Detection head params: {sum(p.numel() for p in class_head_params)} parameters at LR {self.cfg.lr}"
             )
 
         optimizer = AdamW(param_dicts, weight_decay=self.cfg.weight_decay)
