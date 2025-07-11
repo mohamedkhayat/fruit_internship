@@ -55,7 +55,7 @@ class Trainer:
         self.processor: AutoImageProcessor = processor
         self.name: str = name
         self.early_stopping: EarlyStopping = EarlyStopping(
-            cfg.patience, cfg.delta, "checkpoints", name, cfg, run
+            cfg.patience, cfg.delta, "checkpoints", name, run, cfg.log, cfg.upload
         )
         self.scheduler: SequentialLR = self.get_scheduler()
         self.run: Run = run
@@ -63,14 +63,14 @@ class Trainer:
         self.test_dl: DataLoader = test_dl
         self.val_dl: DataLoader = val_dl
         self.start_epoch: int = 0
-        self.accum_steps: int = (
-            self.cfg.effective_batch_size // self.cfg.step_batch_size
-        )
         self.map_evaluator = MAPEvaluator(
             image_processor=processor,
             device=self.device,
             threshold=0.01,
             id2label=train_dl.dataset.id2lbl,
+        )
+        self.accum_steps: int = (
+            self.cfg.effective_batch_size // self.cfg.step_batch_size
         )
         assert self.cfg.effective_batch_size % self.cfg.step_batch_size == 0, (
             f"effective_batch_size ({self.cfg.effective_batch_size}) must be divisible by batch_size "

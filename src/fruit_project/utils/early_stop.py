@@ -1,7 +1,6 @@
 import torch
 import pathlib
 from tqdm import tqdm
-from omegaconf import DictConfig
 from wandb.sdk.wandb_run import Run
 import torch.nn as nn
 from typing import List, Optional, Tuple
@@ -15,8 +14,9 @@ class EarlyStopping:
         delta: float,
         path: str,
         name: str,
-        cfg: DictConfig,
         run: Run,
+        log: bool = False,
+        upload: bool = False,
     ):
         """
         Initializes the EarlyStopping object.
@@ -35,11 +35,13 @@ class EarlyStopping:
         self.path = pathlib.Path(path)
         self.path.mkdir(parents=True, exist_ok=True)
         self.name = name
-        self.cfg = cfg
         self.run = run
         self.best_metric: Optional[float] = None
         self.counter = 0
         self.earlystop = False
+
+        self.log = log
+        self.upload = upload
 
         self.saved_checkpoints: List[Tuple[float, Path]] = []
 
@@ -129,14 +131,13 @@ class EarlyStopping:
         if len(self.saved_checkpoints) > 0:
             _, best_path = max(self.saved_checkpoints, key=lambda x: x[0])
             model.load_state_dict(torch.load(best_path, weights_only=True))
-            """
-            artifact = wandb.Artifact(
-                name=f"{self.cfg.model.name}",
-                type="model-earlystopping-bestmodel",
-                description=f"best model at epoch",
-            )
-            artifact.add_file(best_path)
-            self.run.log_artifact(artifact)
-            artifact.wait()
-            """
+            if self.log and self.upload:
+                artifact = self.run.Artifact(
+                    name=f"{self.name.split('_lr')[0]}",
+                    type="model-earlystopping-bestmodel",
+                    description="best model at epoch",
+                )
+                artifact.add_file(best_path)
+                self.run.log_artifact(artifact)
+                artifact.wait()
         return model
