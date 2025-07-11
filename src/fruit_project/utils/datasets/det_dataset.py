@@ -74,11 +74,13 @@ class DET_DS(Dataset):
         self.lbl2id = {v: k for k, v in self.id2lbl.items()}
 
         num_dropped = 0
-        valid = []
+        valid_imgs = []
+        valid_labels = []
         for p in raw_paths:
             label_path = pathlib.Path(self.label_dir) / (p.stem + ".txt")
             if cv2.imread(str(p)) is not None and label_path.exists():
-                valid.append(p)
+                valid_imgs.append(p)
+                valid_labels.append(label_path)
             else:
                 num_dropped += 1
                 if cv2.imread(str(p)) is None:
@@ -89,8 +91,8 @@ class DET_DS(Dataset):
 
         print(f"dropped {num_dropped} images from {type}")
 
-        self.image_paths = valid
-        self.label_paths = [v.stem + ".txt" for v in valid]
+        self.image_paths = valid_imgs
+        self.label_paths = valid_labels
 
     def __len__(self):
         """
