@@ -106,16 +106,6 @@ class Trainer:
         Returns:
             AdamW: The optimizer.
         """
-        class_head_params = [
-            p
-            for n, p in self.model.named_parameters()
-            if any(
-                head in n
-                for head in ["class_embed", "enc_score_head", "denoising_class_embed"]
-            )
-            and p.requires_grad
-        ]
-
         # Backbone (pre-trained - lowest LR)
         backbone_params = [
             p
@@ -127,38 +117,48 @@ class Trainer:
         encoder_decoder_params = [
             p
             for n, p in self.model.named_parameters()
-            if ("encoder" in n or "decoder" in n)
-            and not any(
-                head in n
-                for head in ["class_embed", "enc_score_head", "denoising_class_embed"]
-            )
-            and "backbone" not in n
+            if ("encoder.encoder" in n or "decoder.layers" in n) # Target the main transformer layers
             and p.requires_grad
         ]
 
-        # Everything else (bbox regression, etc. - base LR)
-        other_params = [
+        # Prediction Heads (highest LR) - Consolidating all prediction layers
+        prediction_head_params = [
             p
             for n, p in self.model.named_parameters()
-            if not any(
-                component in n
-                for component in [
-                    "backbone",
-                    "encoder",
-                    "decoder",
+            if any(
+                head in n
+                for head in [
                     "class_embed",
                     "enc_score_head",
                     "denoising_class_embed",
+                    "bbox_embed",
+                    "enc_bbox_head",
+                    "enc_output", 
+                    "decoder_input_proj", # this is not part of the prediction head but needs the same lr 
+                    "encoder_input_proj" # this is not part of the prediction head but needs the same lr 
                 ]
             )
             and p.requires_grad
         ]
 
+        # Remove prediction head parameters from encoder_decoder_params to avoid overlap
+        encoder_decoder_params = [
+            p for p in encoder_decoder_params if p not in prediction_head_params
+        ]
+
+        # Everything else (Neck, FPN, PAN : medium LR)
+        other_params = [
+            p
+            for n, p in self.model.named_parameters()
+            if n not in backbone_params and n not in encoder_decoder_params and n not in prediction_head_params
+            and p.requires_grad
+        ]
+
         param_dicts = []
 
-        # Base LR for other parameters
+        # Medium LR for other parameters
         if other_params:
-            param_dicts.append({"params": other_params, "lr": self.cfg.lr})
+            param_dicts.append({"params": other_params, "lr": self.cfg.lr / self.cfg.lr_enc_dec_factor})
             print(
                 f"Other params: {sum(p.numel() for p in other_params)} parameters at LR {self.cfg.lr}"
             )
@@ -184,11 +184,11 @@ class Trainer:
                 f"Backbone params: {sum(p.numel() for p in backbone_params)} parameters at LR {self.cfg.lr / self.cfg.lr_back_factor}"
             )
 
-        # Highest LR for classification heads (base LR)
-        if class_head_params:
-            param_dicts.append({"params": class_head_params, "lr": self.cfg.lr})
+        # Highest LR for Prediction head (base LR)
+        if prediction_head_params:
+            param_dicts.append({"params": prediction_head_params, "lr": self.cfg.lr})
             print(
-                f"Classification head params: {sum(p.numel() for p in class_head_params)} parameters at LR {self.cfg.lr}"
+                f"Prediction head params: {sum(p.numel() for p in prediction_head_params)} parameters at LR {self.cfg.lr}"
             )
 
         optimizer = AdamW(param_dicts, weight_decay=self.cfg.weight_decay)
