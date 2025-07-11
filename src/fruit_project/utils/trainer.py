@@ -239,16 +239,6 @@ class Trainer:
                 labels = target["class_labels"]
                 if boxes.shape[1] == 4:
                     boxes = center_to_corners_format(boxes)
-            elif "annotations" in target:
-                boxes_xywh = torch.tensor(
-                    [ann["bbox"] for ann in target["annotations"]]
-                )
-                labels = torch.tensor(
-                    [ann["category_id"] for ann in target["annotations"]]
-                )
-                boxes = boxes_xywh.clone()
-                boxes[:, 2] = boxes_xywh[:, 0] + boxes_xywh[:, 2]
-                boxes[:, 3] = boxes_xywh[:, 1] + boxes_xywh[:, 3]
             else:
                 boxes = torch.empty((0, 4))
                 labels = torch.empty((0,))
