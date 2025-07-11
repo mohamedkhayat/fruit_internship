@@ -45,10 +45,6 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                 ],
                 p=0.2,
             ),
-            A.Perspective(
-                fit_output=True,
-                p=0.1,
-            ),
             A.OneOf(
                 [
                     A.RandomBrightnessContrast(ensure_safe_range=True, p=0.8),
