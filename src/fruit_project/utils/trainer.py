@@ -237,8 +237,10 @@ class Trainer:
             if "boxes" in target and "class_labels" in target:
                 boxes = target["boxes"]
                 labels = target["class_labels"]
-                if boxes.shape[1] == 4:
-                    boxes = center_to_corners_format(boxes)
+                boxes = center_to_corners_format(boxes)
+                width, height = target["size"][1], target["size"][0]
+                boxes[:, [0, 2]] *= width
+                boxes[:, [1, 3]] *= height
             else:
                 boxes = torch.empty((0, 4))
                 labels = torch.empty((0,))
@@ -399,11 +401,11 @@ class Trainer:
                     out, threshold=0.01, target_sizes=sizes
                 )
                 preds = self.nested_to_cpu(preds)
-                targets_for_map = self.format_targets_for_cm(batch["labels"])
+                targets_for_cm = self.format_targets_for_cm(batch["labels"])
 
                 for i in range(len(preds)):
                     pred_item = preds[i]
-                    gt_item = targets_for_map[i]
+                    gt_item = targets_for_cm[i]
 
                     detections = torch.cat(
                         [
@@ -416,7 +418,6 @@ class Trainer:
 
                     gt_boxes = gt_item["boxes"]
                     gt_labels = gt_item["labels"]
-
                     if gt_boxes.numel() > 0:
                         labels = torch.cat(
                             [gt_labels.unsqueeze(1).float(), gt_boxes], dim=1
