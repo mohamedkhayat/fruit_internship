@@ -143,8 +143,9 @@ def get_sampler(train_ds: DET_DS, generator) -> WeightedRandomSampler:
     )
 
     print("Weighted sampler created.")
+    print("class weights : ")
     for k, v in class_weights.items():
-        tqdm.write(f"{k} : weight : {v}")
+        tqdm.write(f"{train_ds.id2lbl[k]} : weight : {v}")
 
     return sampler
 
