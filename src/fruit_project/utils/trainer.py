@@ -117,7 +117,9 @@ class Trainer:
         encoder_decoder_params = [
             p
             for n, p in self.model.named_parameters()
-            if ("encoder.encoder" in n or "decoder.layers" in n) # Target the main transformer layers
+            if (
+                "encoder.encoder" in n or "decoder.layers" in n
+            )  # Target the main transformer layers
             and p.requires_grad
         ]
 
@@ -133,9 +135,9 @@ class Trainer:
                     "denoising_class_embed",
                     "bbox_embed",
                     "enc_bbox_head",
-                    "enc_output", 
-                    "decoder_input_proj", # this is not part of the prediction head but needs the same lr 
-                    "encoder_input_proj" # this is not part of the prediction head but needs the same lr 
+                    "enc_output",
+                    "decoder_input_proj",  # this is not part of the prediction head but needs the same lr
+                    "encoder_input_proj",  # this is not part of the prediction head but needs the same lr
                 ]
             )
             and p.requires_grad
@@ -150,7 +152,9 @@ class Trainer:
         other_params = [
             p
             for n, p in self.model.named_parameters()
-            if n not in backbone_params and n not in encoder_decoder_params and n not in prediction_head_params
+            if n not in backbone_params
+            and n not in encoder_decoder_params
+            and n not in prediction_head_params
             and p.requires_grad
         ]
 
@@ -158,12 +162,14 @@ class Trainer:
 
         # Medium LR for other parameters
         if other_params:
-            param_dicts.append({"params": other_params, "lr": self.cfg.lr / self.cfg.lr_enc_dec_factor})
+            param_dicts.append(
+                {"params": other_params, "lr": self.cfg.lr / self.cfg.lr_enc_dec_factor}
+            )
             print(
                 f"Other params: {sum(p.numel() for p in other_params)} parameters at LR {self.cfg.lr}"
             )
 
-        # Medium LR for encoder/decoder (half of base LR)
+        # Medium LR for encoder/decoder
         if encoder_decoder_params:
             param_dicts.append(
                 {
