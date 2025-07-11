@@ -64,15 +64,21 @@ class DET_DS(Dataset):
         self.input_size = input_size
         self.config_dir = self.root_dir / config_file
         self.processor = processor
-        self.label_paths = []
         raw_paths = sorted(list(pathlib.Path(self.image_dir).glob("*.jpg")))
+
+        with open(self.config_dir, "r") as f:
+            config = yaml.safe_load(f)
+
+        self.labels = [name for name in config["names"]]
+        self.id2lbl = dict(enumerate(self.labels))
+        self.lbl2id = {v: k for k, v in self.id2lbl.items()}
+
         num_dropped = 0
         valid = []
         for p in raw_paths:
             label_path = pathlib.Path(self.label_dir) / (p.stem + ".txt")
             if cv2.imread(str(p)) is not None and label_path.exists():
                 valid.append(p)
-                self.label_paths.append(label_path)
             else:
                 num_dropped += 1
                 if cv2.imread(str(p)) is None:
@@ -84,13 +90,7 @@ class DET_DS(Dataset):
         print(f"dropped {num_dropped} images from {type}")
 
         self.image_paths = valid
-
-        with open(self.config_dir, "r") as f:
-            config = yaml.safe_load(f)
-
-        self.labels = [name for name in config["names"]]
-        self.id2lbl = dict(enumerate(self.labels))
-        self.lbl2id = {v: k for k, v in self.id2lbl.items()}
+        self.label_paths = [v.stem + ".txt" for v in valid]
 
     def __len__(self):
         """
