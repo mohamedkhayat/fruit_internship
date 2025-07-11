@@ -1,5 +1,4 @@
 import functools
-import numpy as np
 from tqdm import tqdm
 from fruit_project.utils.datasets.det_dataset import DET_DS
 from torch.utils.data import DataLoader, WeightedRandomSampler
@@ -98,14 +97,14 @@ def make_datasets(cfg: DictConfig) -> Tuple[DET_DS, DET_DS, DET_DS]:
     return train_ds, test_ds, val_ds
 
 
-def get_sampler(train_ds: DET_DS, strat: str, generator) -> WeightedRandomSampler:
+def get_sampler(train_ds: DET_DS, generator) -> WeightedRandomSampler:
     """
     Creates a WeightedRandomSampler for the training dataset.
     Handles the new dataset format which returns a single dictionary.
     """
     print("Creating weighted sampler...")
     class_counts: Counter = Counter()
-
+    image_classes = []
     for label_path in tqdm(
         train_ds.label_paths, desc="1/2: Counting classes for sampler"
     ):
@@ -116,7 +115,9 @@ def get_sampler(train_ds: DET_DS, strat: str, generator) -> WeightedRandomSample
                     if line.strip():
                         class_id = int(line.strip().split()[0])
                         classes_in_image.add(class_id)
+
         class_counts.update(classes_in_image)
+        image_classes.append(classes_in_image)
 
     if not class_counts:
         print(
@@ -127,23 +128,12 @@ def get_sampler(train_ds: DET_DS, strat: str, generator) -> WeightedRandomSample
     class_weights = {c: 1.0 / cnt for c, cnt in class_counts.items()}
 
     weights = []
-    for label_path in tqdm(train_ds.label_paths, desc="2/2: Assigning sample weights"):
-        classes_in_image = set()
-        if os.path.exists(label_path):
-            with open(label_path, "r") as f:
-                for line in f:
-                    if line.strip():
-                        class_id = int(line.strip().split()[0])
-                        classes_in_image.add(class_id)
-
+    for classes_in_image in tqdm(image_classes, desc="2/2: Assigning Class Weights"):
         if not classes_in_image:
             weights.append(min(class_weights.values()) if class_weights else 1.0)
             continue
 
-        if strat == "max":
-            weights.append(max(class_weights[c] for c in classes_in_image))
-        elif strat == "mean":
-            weights.append(np.mean([class_weights[c] for c in classes_in_image]))
+        weights.append(max(class_weights[c] for c in classes_in_image))
 
     weights = torch.tensor(weights, dtype=torch.double)
     sampler_generator = torch.Generator().manual_seed(generator.initial_seed() + 1)
@@ -151,7 +141,11 @@ def get_sampler(train_ds: DET_DS, strat: str, generator) -> WeightedRandomSample
     sampler = WeightedRandomSampler(
         weights, num_samples=len(weights), replacement=True, generator=sampler_generator
     )
+
     print("Weighted sampler created.")
+    for k, v in class_weights.items():
+        tqdm.write(f"{k} : weight : {v}")
+
     return sampler
 
 
@@ -189,7 +183,7 @@ def make_dataloaders(
 
     sampler = None
     if cfg.do_sample:
-        sampler = get_sampler(train_ds, cfg.sample_strat, generator)
+        sampler = get_sampler(train_ds, generator)
 
     train_dl = DataLoader(
         train_ds,
