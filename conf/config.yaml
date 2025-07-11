@@ -27,7 +27,6 @@ min_viz : 0.1
 min_width : 7
 min_height : 7
 aug : hard
-sample_strat : max
 do_sample : True
 freeze_backbone : True
 freeze_encoder : False
