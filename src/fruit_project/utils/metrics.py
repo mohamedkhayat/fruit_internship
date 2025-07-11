@@ -103,6 +103,29 @@ class ConfusionMatrix:
                 det_cls = detection_classes[i]
                 self.matrix[self.nc, det_cls] += 1
 
+    def update(self, preds, targets_for_cm):
+        for i in range(len(preds)):
+            pred_item = preds[i]
+            gt_item = targets_for_cm[i]
+
+            detections = torch.cat(
+                [
+                    pred_item["boxes"],
+                    pred_item["scores"].unsqueeze(1),
+                    pred_item["labels"].unsqueeze(1).float(),
+                ],
+                dim=1,
+            )
+
+            gt_boxes = gt_item["boxes"]
+            gt_labels = gt_item["labels"]
+            if gt_boxes.numel() > 0:
+                labels = torch.cat([gt_labels.unsqueeze(1).float(), gt_boxes], dim=1)
+            else:
+                labels = torch.zeros((0, 5))
+
+            self.process_batch(detections, labels)
+
     def plot(self, class_names: List[str], normalize: bool = True) -> plt.Figure:
         """Generates and returns a matplotlib figure of the confusion matrix."""
         array = self.matrix.numpy().astype(float)

@@ -402,30 +402,7 @@ class Trainer:
                 )
                 preds = self.nested_to_cpu(preds)
                 targets_for_cm = self.format_targets_for_cm(batch["labels"])
-
-                for i in range(len(preds)):
-                    pred_item = preds[i]
-                    gt_item = targets_for_cm[i]
-
-                    detections = torch.cat(
-                        [
-                            pred_item["boxes"],
-                            pred_item["scores"].unsqueeze(1),
-                            pred_item["labels"].unsqueeze(1).float(),
-                        ],
-                        dim=1,
-                    )
-
-                    gt_boxes = gt_item["boxes"]
-                    gt_labels = gt_item["labels"]
-                    if gt_boxes.numel() > 0:
-                        labels = torch.cat(
-                            [gt_labels.unsqueeze(1).float(), gt_boxes], dim=1
-                        )
-                    else:
-                        labels = torch.zeros((0, 5))
-
-                    cm.process_batch(detections, labels)
+                cm.update(preds, targets_for_cm)
 
         tqdm.write("Computing mAP metrics")
         metrics = self.map_evaluator.map_metric.compute()
