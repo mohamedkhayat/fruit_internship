@@ -395,7 +395,9 @@ class Trainer:
                 }
             )
             if calc_cm and cm:
-                sizes = torch.stack([torch.tensor(t["size"]) for t in batch["labels"]])
+                sizes = torch.stack(
+                    [t["size"].clone().detach() for t in batch["labels"]]
+                )
 
                 preds = self.processor.post_process_object_detection(
                     out, threshold=0.01, target_sizes=sizes
