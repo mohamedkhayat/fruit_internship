@@ -449,18 +449,17 @@ class Trainer:
 
         class_names = test_dl.dataset.labels
         
-
         test_metrics = {
             "map@50:95": test_map,
             "map@50": test_map50,
             "map@50_per_class": self.map_evaluator.get_per_class(
-            map_50_metrics, class_names, metric="map_per_class"
+            map_50_metrics, metric="map_per_class"
             ),
             "precision_per_class": self.map_evaluator.get_per_class(
-                map_50_metrics, class_names, metric="precision_per_class"
+                map_50_metrics, metric="precision_per_class"
             ),
             "recall_per_class": self.map_evaluator.get_per_class(
-                map_50_metrics, class_names, metric="recall_per_class"
+                map_50_metrics, metric="recall_per_class"
             ),
             "recall": test_recall,
             "precision": test_precision,
