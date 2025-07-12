@@ -444,23 +444,27 @@ class Trainer:
         test_map = map_50_95_metrics.get("map", 0.0)
         test_map50 = map_50_95_metrics.get("map_50", 0.0)
         map_50_metrics = self.map_evaluator.map_50_metric.compute()
+        test_recall = map_50_95_metrics.get("recall", 0.0)
+        test_precision = map_50_95_metrics.get("precision", 0.0)
 
-        per_class_maps = []
         class_names = test_dl.dataset.labels
-        if "classes" in map_50_metrics and "map_per_class" in map_50_metrics:
-            class_map_dict = {
-                c.item(): m.item()
-                for c, m in zip(
-                    map_50_metrics["classes"], map_50_metrics["map_per_class"]
-                )
-            }
-            for i in range(len(class_names)):
-                per_class_maps.append(class_map_dict.get(i, 0.0))
-        else:
-            per_class_maps = [0.0] * len(class_names)
+        test_map_per_class = self.map_evaluator.get_per_class(
+            map_50_metrics, class_names, metric="map_per_class"
+        )
 
-        test_map_per_class = torch.tensor(per_class_maps)
-
+        test_metrics = {
+            "map@50:95": test_map,
+            "map@50": test_map50,
+            "map@50_per_class": test_map_per_class,
+            "precision_per_class": self.map_evaluator.get_per_class(
+                map_50_metrics, class_names, metric="precision_per_class"
+            ),
+            "recall_per_class": self.map_evaluator.get_per_class(
+                map_50_metrics, class_names, metric="recall_per_class"
+            ),
+            "recall": test_recall,
+            "precision": test_precision,
+        }
         num_batches = len(test_dl)
         epoch_loss = {k: v / num_batches for k, v in epoch_loss.items()}
 
@@ -477,7 +481,7 @@ class Trainer:
             if i < len(test_map_per_class):
                 tqdm.write(f"\t\t{class_name:<15}: {test_map_per_class[i].item():.4f}")
 
-        return epoch_loss, test_map, test_map50, test_map_per_class, cm
+        return epoch_loss, test_metrics, cm
 
     def fit(self) -> None:
         """
@@ -501,28 +505,24 @@ class Trainer:
                 epoch + 1,
             )
 
-            test_loss, test_map, test_map50, test_map_per_class, _ = self.eval(
-                self.test_dl, epoch + 1
-            )
+            test_loss, test_metrics, _ = self.eval(self.test_dl, epoch + 1)
 
             self.scheduler.step()
 
             epoch_pbar.update(1)
 
-            best_test_map = max(test_map50, best_test_map)
+            best_test_map = max(test_metrics["map@50"], best_test_map)
 
             if self.cfg.log:
                 log_epoch_data(
                     epoch,
                     train_loss,
-                    test_map,
-                    test_map50,
                     test_loss,
-                    test_map_per_class,
+                    test_metrics,
                     self,
                 )
 
-            if self.early_stopping(test_map, self.model):
+            if self.early_stopping(test_metrics["map@50:95"], self.model):
                 tqdm.write(f"Early stopping triggered at epoch {epoch + 1}.")
                 break
 

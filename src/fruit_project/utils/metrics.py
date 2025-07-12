@@ -269,3 +269,20 @@ class MAPEvaluator:
         )
 
         return post_processed_predictions
+
+    def get_per_class(self, map_50_metrics, metric):
+        per_class_metric = []
+        class_names = [v for v in self.id2label.values()]
+        if "classes" in map_50_metrics and metric in map_50_metrics:
+            class_metric_dict = {
+                c.item(): m.item()
+                for c, m in zip(map_50_metrics["classes"], map_50_metrics[metric])
+            }
+            for i in range(len(class_names)):
+                per_class_metric.append(class_metric_dict.get(i, 0.0))
+        else:
+            per_class_metric = [0.0] * len(class_names)
+
+        per_class_metric = torch.tensor(per_class_metric)
+
+        return per_class_metric

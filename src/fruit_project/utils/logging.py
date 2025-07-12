@@ -330,16 +330,17 @@ def log_detection_confusion_matrix(
     plt.close(fig)
 
 
-def log_per_class_map(
+def log_per_class_metric(
     class_names: List,
-    map_per_class: torch.Tensor,
+    metric_per_class: torch.Tensor,
     ds_type: str,
+    metric_name: str,
     log_data: Dict,
 ) -> None:
-    map_per_class = map_per_class.cpu()
+    metric_per_class = metric_per_class.cpu()
     for i, name in enumerate(class_names):
-        if i < len(map_per_class):
-            log_data[f"{ds_type}/map_50-95/{name}"] = map_per_class[i].item()
+        if i < len(metric_per_class):
+            log_data[f"{ds_type}/{metric_name}/{name}"] = metric_per_class[i].item()
 
 
 def log_val_data(epoch: int, best_test_map: float, trainer) -> None:
@@ -355,27 +356,28 @@ def log_val_data(epoch: int, best_test_map: float, trainer) -> None:
     """
 
     trainer.model = trainer.early_stopping.get_best_model(trainer.model)
-    val_loss, val_map, val_map50, val_map_per_class, cm = trainer.eval(
-        trainer.val_dl, epoch + 1, calc_cm=True
-    )
+    val_loss, val_metrics, cm = trainer.eval(trainer.val_dl, epoch + 1, calc_cm=True)
 
     log_data = {
         "test/best test map": best_test_map,
-        "val/map": val_map,
-        "val/map@50": val_map50,
+        "val/map@50:95": val_metrics["map@50:95"],
+        "val/map@50": val_metrics["map@50"],
+        "val/recall": val_metrics["recall"],
+        "val/precision": val_metrics["precision"],
     }
 
     log_data.update({f"val/{k}": v for k, v in val_loss.items()})
 
-    tqdm.write("\t--- Per-class mAP@50---")
-    class_names = trainer.val_dl.dataset.labels
-    map_per_class = val_map_per_class.cpu()
-    for i, name in enumerate(class_names):
-        if i < len(map_per_class):
-            log_data[f"val/map@50/{name}"] = map_per_class[i].item()
-
+    for metric in ["map@50", "precision", "recall"]:
+        log_per_class_metric(
+            trainer.val_dl.dataset.labels,
+            val_metrics[f"{metric}_per_class"],
+            "val",
+            metric,
+            log_data,
+        )
     tqdm.write(
-        f"\tVal  --- Loss: {val_loss['loss']:.4f}, mAP50-95: {val_map:.4f}, mAP@50 : {val_map50:.4f}"
+        f"\tVal  --- Loss: {val_loss['loss']:.4f}, mAP50-95: {val_metrics['map@50:95']:.4f}, mAP@50 : {val_metrics['map@50']:.4f}"
     )
     log_detection_confusion_matrix(trainer.run, cm, list(trainer.val_dl.dataset.labels))
 
@@ -385,10 +387,8 @@ def log_val_data(epoch: int, best_test_map: float, trainer) -> None:
 def log_epoch_data(
     epoch: int,
     train_loss: Dict[str, float],
-    test_map: float,
-    test_map50: float,
     test_loss: Dict[str, float],
-    test_map_per_class: torch.Tensor,
+    test_metrics: Dict,
     trainer,
 ) -> None:
     """
@@ -408,15 +408,22 @@ def log_epoch_data(
     """
     log_data = {
         "epoch": epoch,
-        "test/map": test_map,
-        "test/map 50": test_map50,
+        "test/map@50:95": test_metrics["map@50:95"],
+        "test/map@50": test_metrics["map@50"],
+        "test/recall": test_metrics["recall"],
+        "test/precision": test_metrics["precision"],
         "Learning rate": float(f"{trainer.scheduler.get_last_lr()[0]:.6f}"),
     }
 
     log_data.update({f"train/{k}": v for k, v in train_loss.items()})
     log_data.update({f"test/{k}": v for k, v in test_loss.items()})
 
-    log_per_class_map(
-        trainer.test_dl.dataset.labels, test_map_per_class, "test", log_data
-    )
+    for metric in ["map@50", "precision", "recall"]:
+        log_per_class_metric(
+            trainer.test_dl.dataset.labels,
+            test_metrics[f"{metric}_per_class"],
+            "test",
+            metric,
+            log_data,
+        )
     trainer.run.log(log_data)
