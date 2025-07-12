@@ -367,12 +367,12 @@ def log_val_data(epoch: int, best_test_map: float, trainer) -> None:
 
     log_data.update({f"val/{k}": v for k, v in val_loss.items()})
 
-    tqdm.write("\t--- Per-class mAP@50-95 ---")
+    tqdm.write("\t--- Per-class mAP@50---")
     class_names = trainer.val_dl.dataset.labels
     map_per_class = val_map_per_class.cpu()
     for i, name in enumerate(class_names):
         if i < len(map_per_class):
-            log_data[f"val/map_50-95/{name}"] = map_per_class[i].item()
+            log_data[f"val/map@50/{name}"] = map_per_class[i].item()
 
     tqdm.write(
         f"\tVal  --- Loss: {val_loss['loss']:.4f}, mAP50-95: {val_map:.4f}, mAP@50 : {val_map50:.4f}"
