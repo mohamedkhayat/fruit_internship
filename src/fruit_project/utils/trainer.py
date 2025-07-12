@@ -117,8 +117,14 @@ class Trainer:
         encoder_decoder_params = [
             p
             for n, p in self.model.named_parameters()
-            if (
-                "encoder.encoder" in n or "decoder.layers" in n
+            if any(
+                head in n
+                for head in [
+                    "encoder.encoder",
+                    "decoder.layers",
+                    "input_proj",
+                    "enc_output",
+                ]
             )  # Target the main transformer layers
             and p.requires_grad
         ]
@@ -135,9 +141,6 @@ class Trainer:
                     "denoising_class_embed",
                     "bbox_embed",
                     "enc_bbox_head",
-                    "enc_output",
-                    "decoder_input_proj",  # this is not part of the prediction head but needs the same lr
-                    "encoder_input_proj",  # this is not part of the prediction head but needs the same lr
                 ]
             )
             and p.requires_grad
