@@ -151,18 +151,8 @@ class DET_DS(Dataset):
             boxes = augmented["bboxes"]
             labels = augmented["labels"]
 
-        target = {
-            "image_id": idx,
-            "annotations": [
-                {
-                    "bbox": box.tolist(),
-                    "category_id": label,
-                    "area": box[2] * box[3],
-                    "iscrowd": 0,
-                }
-                for box, label in zip(boxes, labels)
-            ],
-        }
+        target = format_for_hf_processor(boxes, labels, idx)
+
         if hasattr(self, "processor") and self.processor:
             result = self.processor(
                 images=img,
@@ -205,3 +195,19 @@ class DET_DS(Dataset):
                 labels.append(int(cls))
 
         return img, np.array(boxes, dtype=np.float32), np.array(labels, dtype=np.int64)
+
+
+def format_for_hf_processor(boxes, labels, idx):
+    """Convert back to HF format"""
+    return {
+        "image_id": idx,
+        "annotations": [
+            {
+                "bbox": box.tolist() if hasattr(box, "tolist") else box,
+                "category_id": int(label),
+                "area": float(box[2] * box[3]),
+                "iscrowd": 0,
+            }
+            for box, label in zip(boxes, labels)
+        ],
+    }
