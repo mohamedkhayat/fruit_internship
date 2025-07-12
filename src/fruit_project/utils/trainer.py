@@ -438,10 +438,10 @@ class Trainer:
                 cm.update(preds, targets_for_cm)
 
         tqdm.write("Computing mAP metrics")
-        map_5O_95_metrics = self.map_evaluator.map_metric.compute()
-        test_map = map_5O_95_metrics.get("map", 0.0)
+        map_50_95_metrics = self.map_evaluator.map_metric.compute()
+        test_map = map_50_95_metrics.get("map", 0.0)
+        test_map50 = map_50_95_metrics.get("map_50", 0.0)
         map_50_metrics = self.map_evaluator.map_50_metric.compute()
-        test_map50 = map_50_metrics.get("map_50", 0.0)
         
         per_class_maps = []
         class_names = test_dl.dataset.labels
