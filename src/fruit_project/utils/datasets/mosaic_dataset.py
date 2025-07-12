@@ -21,29 +21,21 @@ class UltralyticsStyleMosaic:
     def __init__(
         self,
         target_size: int = 640,
-        n_images: int = 4,
         center_range: float = 0.5,
         pad_val: int = 114,
     ):
         """
         Args:
             target_size: Final output image size
-            n_images: Number of images to mosaic (4 or 9)
             center_range: Range for center point selection (0.5 = ±50% from center)
             pad_val: Padding value for empty areas
         """
         self.target_size = target_size
-        self.n_images = n_images
         self.center_range = center_range
         self.pad_val = pad_val
 
         # Pre-compute mosaic positions for efficiency
-        if n_images == 4:
-            self.positions = [(0, 0), (0, 1), (1, 0), (1, 1)]  # 2x2 grid
-        elif n_images == 9:
-            self.positions = [(i, j) for i in range(3) for j in range(3)]  # 3x3 grid
-        else:
-            raise ValueError(f"n_images must be 4 or 9, got {n_images}")
+        self.positions = [(0, 0), (0, 1), (1, 0), (1, 1)]  # 2x2 grid
 
     def __call__(self, dataset: DET_DS) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
@@ -81,23 +73,22 @@ class UltralyticsStyleMosaic:
             h, w = img.shape[:2]
 
             # Calculate placement coordinates (Fixed Ultralytics approach)
-            if self.n_images == 4:
-                # 2x2 mosaic - proper quadrant assignment
-                if i == 0:  # Top-left
-                    x1a, y1a = max(center_x - w, 0), max(center_y - h, 0)
-                    x2a, y2a = center_x, center_y
-                elif i == 1:  # Top-right
-                    x1a, y1a = center_x, max(center_y - h, 0)
-                    x2a, y2a = min(center_x + w, canvas_size), center_y
-                elif i == 2:  # Bottom-left
-                    x1a, y1a = max(center_x - w, 0), center_y
-                    x2a, y2a = center_x, min(center_y + h, canvas_size)
-                else:  # Bottom-right (i == 3)
-                    x1a, y1a = center_x, center_y
-                    x2a, y2a = (
-                        min(center_x + w, canvas_size),
-                        min(center_y + h, canvas_size),
-                    )
+            # 2x2 mosaic - proper quadrant assignment
+            if i == 0:  # Top-left
+                x1a, y1a = max(center_x - w, 0), max(center_y - h, 0)
+                x2a, y2a = center_x, center_y
+            elif i == 1:  # Top-right
+                x1a, y1a = center_x, max(center_y - h, 0)
+                x2a, y2a = min(center_x + w, canvas_size), center_y
+            elif i == 2:  # Bottom-left
+                x1a, y1a = max(center_x - w, 0), center_y
+                x2a, y2a = center_x, min(center_y + h, canvas_size)
+            else:  # Bottom-right (i == 3)
+                x1a, y1a = center_x, center_y
+                x2a, y2a = (
+                    min(center_x + w, canvas_size),
+                    min(center_y + h, canvas_size),
+                )
 
                 # Calculate source image coordinates properly
                 x1b = max(0, w - (x2a - x1a))
@@ -112,27 +103,6 @@ class UltralyticsStyleMosaic:
                 if i == 2 or i == 3:  # Bottom side quadrants
                     y1b = 0
                     y2b = min(h, y2a - y1a)
-
-            else:  # 9-image mosaic (3x3 grid)
-                # More complex positioning for 3x3 grid
-                pos_x, pos_y = self.positions[i]
-                cell_w = canvas_size // 3
-                cell_h = canvas_size // 3
-
-                # Base position
-                base_x = pos_x * cell_w
-                base_y = pos_y * cell_h
-
-                # Add some randomness within cell
-                x1a = base_x + np.random.randint(-cell_w // 4, cell_w // 4)
-                y1a = base_y + np.random.randint(-cell_h // 4, cell_h // 4)
-                x2a = min(x1a + w, canvas_size)
-                y2a = min(y1a + h, canvas_size)
-
-                x1b = max(0, w - (x2a - x1a))
-                y1b = max(0, h - (y2a - y1a))
-                x2b = w
-                y2b = h
 
             # Ensure coordinates are valid
             x1a, y1a = max(0, x1a), max(0, y1a)
