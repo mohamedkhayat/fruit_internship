@@ -3,6 +3,7 @@ from tqdm import tqdm
 from fruit_project.utils.datasets.det_dataset import DET_DS
 from torch.utils.data import DataLoader, WeightedRandomSampler
 from omegaconf import DictConfig
+from fruit_project.utils.datasets.mosaic_dataset import MosaicDataset
 from fruit_project.utils.general import seed_worker
 import os
 from collections import Counter
@@ -67,7 +68,7 @@ def make_datasets(cfg: DictConfig) -> Tuple[DET_DS, DET_DS, DET_DS]:
     print("making datasets")
     data_dir = os.path.join(get_original_cwd(), "data", cfg.root_dir)
 
-    train_ds = DET_DS(
+    train_ds_base = DET_DS(
         data_dir,
         "train",
         "images",
@@ -76,6 +77,13 @@ def make_datasets(cfg: DictConfig) -> Tuple[DET_DS, DET_DS, DET_DS]:
         None,
         cfg.model.input_size,
     )
+
+    if cfg.use_mosaic:
+        print("Applying Mosaic augmentation to the training dataset.")
+        train_ds = MosaicDataset(train_ds_base, target_size=cfg.model.input_size, mosaic_prob=0.8)
+    else:
+        train_ds = train_ds_base
+
     test_ds = DET_DS(
         data_dir,
         "test",
