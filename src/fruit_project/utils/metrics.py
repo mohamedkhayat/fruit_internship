@@ -186,6 +186,10 @@ class MAPEvaluator:
             box_format="xyxy", class_metrics=True
         ).to(device)
         self.map_metric.warn_on_many_detections = False
+        self.map_50_metric = MeanAveragePrecision(
+            box_format="xyxy", class_metrics=True, iou_thresholds=[0.5]
+        ).to(device)
+        self.map_50_metric.warn_on_many_detections = False
         self.device = device
 
     def collect_image_sizes(self, targets):

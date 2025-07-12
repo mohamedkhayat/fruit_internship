@@ -413,6 +413,9 @@ class Trainer:
             self.map_evaluator.map_metric.update(
                 batch_preds_processed, batch_targets_processed
             )
+            self.map_evaluator.map_50_metric.update(
+                batch_preds_processed, batch_targets_processed
+            )
 
             current_avg_loss = epoch_loss["loss"] / (batch_idx + 1)
 
@@ -435,16 +438,17 @@ class Trainer:
                 cm.update(preds, targets_for_cm)
 
         tqdm.write("Computing mAP metrics")
-        metrics = self.map_evaluator.map_metric.compute()
-        test_map = metrics.get("map", 0.0)
-        test_map50 = metrics.get("map_50", 0.0)
-
+        map_5O_95_metrics = self.map_evaluator.map_metric.compute()
+        test_map = map_5O_95_metrics.get("map", 0.0)
+        map_50_metrics = self.map_evaluator.map_50_metric.compute()
+        test_map50 = map_50_metrics.get("map_50", 0.0)
+        
         per_class_maps = []
         class_names = test_dl.dataset.labels
-        if "classes" in metrics and "map_per_class" in metrics:
+        if "classes" in map_50_metrics and "map_per_class" in map_50_metrics:
             class_map_dict = {
                 c.item(): m.item()
-                for c, m in zip(metrics["classes"], metrics["map_per_class"])
+                for c, m in zip(map_50_metrics["classes"], map_50_metrics["map_per_class"])
             }
             for i in range(len(class_names)):
                 per_class_maps.append(class_map_dict.get(i, 0.0))
