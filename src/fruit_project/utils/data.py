@@ -3,7 +3,9 @@ from tqdm import tqdm
 from fruit_project.utils.datasets.det_dataset import DET_DS
 from torch.utils.data import DataLoader, WeightedRandomSampler
 from omegaconf import DictConfig
-from fruit_project.utils.datasets.mosaic_dataset import MosaicDataset
+from fruit_project.utils.datasets.mosaic_dataset import (
+    create_ultralytics_mosaic_dataset,
+)
 from fruit_project.utils.general import seed_worker
 import os
 from collections import Counter
@@ -78,9 +80,11 @@ def make_datasets(cfg: DictConfig) -> Tuple[DET_DS, DET_DS, DET_DS]:
         cfg.model.input_size,
     )
 
-    if cfg.use_mosaic:
+    if cfg.mosaic.use:
         print("Applying Mosaic augmentation to the training dataset.")
-        train_ds = MosaicDataset(train_ds_base, target_size=cfg.model.input_size, mosaic_prob=0.8)
+        train_ds = create_ultralytics_mosaic_dataset(
+            train_ds_base, train_ds_base.input_size, cfg.mosaic.prob, 4, 10, cfg.epochs
+        )
     else:
         train_ds = train_ds_base
 
