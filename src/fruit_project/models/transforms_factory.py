@@ -106,6 +106,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
 
     transforms = {
         "train": hard_train_transforms if cfg.aug == "hard" else safe_train_transforms,
+        "train_easy": safe_train_transforms,
         "test": A.Compose(
             [A.NoOp()],
             bbox_params=A.BboxParams(
