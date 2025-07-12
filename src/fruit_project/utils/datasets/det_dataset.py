@@ -174,7 +174,7 @@ class DET_DS(Dataset):
             return result
         else:
             raise AttributeError("No Processor in dataset")
-        
+
     def get_raw_item(self, idx: int):
         """
         Fetches a raw, untransformed image and its annotations.
@@ -184,7 +184,7 @@ class DET_DS(Dataset):
         label_path = self.label_paths[idx]
 
         img = cv2.imread(str(image_path))
-        if img is None: # Handle potential bad image
+        if img is None:  # Handle potential bad image
             return self.get_raw_item(np.random.randint(0, len(self)))
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
@@ -192,9 +192,10 @@ class DET_DS(Dataset):
         labels = []
         height, width, _ = img.shape
 
-        with open(label_path, 'r') as f:
+        with open(label_path, "r") as f:
             for line in f.readlines():
-                if not line.strip(): continue
+                if not line.strip():
+                    continue
                 cls, cx, cy, w, h = map(float, line.strip().split())
                 x1 = (cx - w / 2) * width
                 y1 = (cy - h / 2) * height
@@ -202,5 +203,5 @@ class DET_DS(Dataset):
                 box_h = h * height
                 boxes.append([x1, y1, box_w, box_h])
                 labels.append(int(cls))
-        
+
         return img, np.array(boxes, dtype=np.float32), np.array(labels, dtype=np.int64)
