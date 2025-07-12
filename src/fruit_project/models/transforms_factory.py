@@ -36,6 +36,14 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                 ],
                 p=0.2,
             ),
+            A.ConstrainedCoarseDropout(
+                num_holes_range=(1, 3),
+                hole_height_range=(0.2, 0.3),
+                hole_width_range=(0.2, 0.3),
+                bbox_labels=[k for k in id2label.keys()],
+                fill=0,
+                p=0.2,
+            ),
             A.Perspective(p=0.1),
             A.OneOf(
                 [
