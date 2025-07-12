@@ -369,7 +369,8 @@ class Trainer:
                 - cm (ConfusionMatrix | None): The confusion matrix if calc_cm is True, else None.
         """
         self.model.eval()
-
+        self.map_evaluator.map_metric.reset()
+        self.map_evaluator.map_50_metric.reset()
         epoch_loss = {"loss": 0.0}
         epoch_loss.update({k: 0.0 for k in ["class_loss", "bbox_loss", "giou_loss"]})
 
