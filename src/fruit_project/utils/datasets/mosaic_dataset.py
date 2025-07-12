@@ -1,10 +1,7 @@
-import cv2
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-from typing import Tuple, List, Optional, Union
-import random
-import math
+from typing import Tuple
 
 from .det_dataset import DET_DS
 
@@ -83,39 +80,36 @@ class UltralyticsStyleMosaic:
             img, boxes, labels = dataset.get_raw_item(idx)
             h, w = img.shape[:2]
 
-            # Calculate placement coordinates
+            # Calculate placement coordinates (Fixed Ultralytics approach)
             if self.n_images == 4:
-                # 2x2 mosaic
-                pos_x, pos_y = self.positions[i]
-
-                # Define quadrant boundaries
-                if pos_x == 0 and pos_y == 0:  # Top-left
+                # 2x2 mosaic - proper quadrant assignment
+                if i == 0:  # Top-left
                     x1a, y1a = max(center_x - w, 0), max(center_y - h, 0)
                     x2a, y2a = center_x, center_y
-                elif pos_x == 0 and pos_y == 1:  # Top-right
+                elif i == 1:  # Top-right
                     x1a, y1a = center_x, max(center_y - h, 0)
                     x2a, y2a = min(center_x + w, canvas_size), center_y
-                elif pos_x == 1 and pos_y == 0:  # Bottom-left
+                elif i == 2:  # Bottom-left
                     x1a, y1a = max(center_x - w, 0), center_y
                     x2a, y2a = center_x, min(center_y + h, canvas_size)
-                else:  # Bottom-right
+                else:  # Bottom-right (i == 3)
                     x1a, y1a = center_x, center_y
                     x2a, y2a = (
                         min(center_x + w, canvas_size),
                         min(center_y + h, canvas_size),
                     )
 
-                # Calculate source image coordinates
-                x1b = w - (x2a - x1a)
-                y1b = h - (y2a - y1a)
+                # Calculate source image coordinates properly
+                x1b = max(0, w - (x2a - x1a))
+                y1b = max(0, h - (y2a - y1a))
                 x2b = w
                 y2b = h
 
-                # Handle edge cases
-                if x1a == center_x:  # Right side
+                # Handle edge cases for right and bottom quadrants
+                if i == 1 or i == 3:  # Right side quadrants
                     x1b = 0
                     x2b = min(w, x2a - x1a)
-                if y1a == center_y:  # Bottom side
+                if i == 2 or i == 3:  # Bottom side quadrants
                     y1b = 0
                     y2b = min(h, y2a - y1a)
 
@@ -177,9 +171,15 @@ class UltralyticsStyleMosaic:
                         boxes_transformed[:, 3], canvas_size - boxes_transformed[:, 1]
                     )
 
-                    # Only keep boxes with meaningful area
+                    # Only keep boxes with meaningful area (stricter filtering)
                     areas = boxes_transformed[:, 2] * boxes_transformed[:, 3]
-                    valid_mask = areas > 4  # Minimum 2x2 pixels
+                    # Use minimum area of 16 pixels (4x4) and ensure box dimensions > 2 pixels
+                    min_dim = 2.0
+                    valid_mask = (
+                        (areas > 16.0)
+                        & (boxes_transformed[:, 2] > min_dim)
+                        & (boxes_transformed[:, 3] > min_dim)
+                    )
 
                     if np.any(valid_mask):
                         all_boxes.append(boxes_transformed[valid_mask])
@@ -222,9 +222,14 @@ class UltralyticsStyleMosaic:
                 final_boxes[:, 3], 0, self.target_size - final_boxes[:, 1]
             )
 
-            # Final area filter
+            # Final area filter (more conservative)
             areas = final_boxes[:, 2] * final_boxes[:, 3]
-            valid_mask = areas > 4
+            min_dim = 2.0
+            valid_mask = (
+                (areas > 16.0)
+                & (final_boxes[:, 2] > min_dim)
+                & (final_boxes[:, 3] > min_dim)
+            )
 
             final_boxes = final_boxes[valid_mask]
             final_labels = final_labels[valid_mask]
