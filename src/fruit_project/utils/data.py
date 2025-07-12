@@ -83,7 +83,11 @@ def make_datasets(cfg: DictConfig) -> Tuple[DET_DS, DET_DS, DET_DS]:
     if cfg.mosaic.use:
         print("Applying Mosaic augmentation to the training dataset.")
         train_ds = create_ultralytics_mosaic_dataset(
-            train_ds_base, train_ds_base.input_size, cfg.mosaic.prob, 10, cfg.epochs
+            dataset=train_ds_base,
+            target_size=train_ds_base.input_size,
+            mosaic_prob=cfg.mosaic.prob,
+            disable_mosaic_epochs=10,
+            total_epochs=cfg.epochs,
         )
     else:
         train_ds = train_ds_base
