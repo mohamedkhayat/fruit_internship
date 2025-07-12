@@ -1,9 +1,7 @@
-import numpy as np
-import torch
-from torch.utils.data import Dataset
 from typing import Tuple
-
-from .det_dataset import DET_DS
+import numpy as np
+from torch.utils.data import Dataset
+from .det_dataset import DET_DS, format_for_hf_processor
 
 
 class UltralyticsStyleMosaic:
@@ -33,7 +31,7 @@ class UltralyticsStyleMosaic:
         self.target_size = target_size
         self.center_range = center_range
         self.pad_val = pad_val
-
+        self.n_images = 4
         # Pre-compute mosaic positions for efficiency
         self.positions = [(0, 0), (0, 1), (1, 0), (1, 1)]  # 2x2 grid
 
@@ -90,19 +88,19 @@ class UltralyticsStyleMosaic:
                     min(center_y + h, canvas_size),
                 )
 
-                # Calculate source image coordinates properly
-                x1b = max(0, w - (x2a - x1a))
-                y1b = max(0, h - (y2a - y1a))
-                x2b = w
-                y2b = h
+            # Calculate source image coordinates properly
+            x1b = max(0, w - (x2a - x1a))
+            y1b = max(0, h - (y2a - y1a))
+            x2b = w
+            y2b = h
 
-                # Handle edge cases for right and bottom quadrants
-                if i == 1 or i == 3:  # Right side quadrants
-                    x1b = 0
-                    x2b = min(w, x2a - x1a)
-                if i == 2 or i == 3:  # Bottom side quadrants
-                    y1b = 0
-                    y2b = min(h, y2a - y1a)
+            # Handle edge cases for right and bottom quadrants
+            if i == 1 or i == 3:  # Right side quadrants
+                x1b = 0
+                x2b = min(w, x2a - x1a)
+            if i == 2 or i == 3:  # Bottom side quadrants
+                y1b = 0
+                y2b = min(h, y2a - y1a)
 
             # Ensure coordinates are valid
             x1a, y1a = max(0, x1a), max(0, y1a)
@@ -223,7 +221,6 @@ class UltralyticsStyleMosaicDataset(Dataset):
         dataset: DET_DS,
         target_size: int = 640,
         mosaic_prob: float = 0.8,
-        n_images: int = 4,
         disable_mosaic_epochs: int = 10,
         current_epoch: int = 0,
         total_epochs: int = 100,
@@ -247,7 +244,7 @@ class UltralyticsStyleMosaicDataset(Dataset):
 
         # Initialize mosaic augmentation
         self.mosaic_aug = UltralyticsStyleMosaic(
-            target_size=target_size, n_images=n_images
+            target_size=target_size
         )
 
         # Copy dataset attributes
@@ -311,18 +308,7 @@ class UltralyticsStyleMosaicDataset(Dataset):
                 labels = labels.tolist() if len(labels) > 0 else []
 
         # Prepare target in COCO format
-        target = {
-            "image_id": idx,
-            "annotations": [
-                {
-                    "bbox": box if isinstance(box, list) else box.tolist(),
-                    "category_id": int(label),
-                    "area": float(box[2] * box[3]) if len(box) == 4 else 0.0,
-                    "iscrowd": 0,
-                }
-                for box, label in zip(boxes, labels)
-            ],
-        }
+        target = format_for_hf_processor(boxes, labels, idx)
 
         # Apply processor if available
         if hasattr(self, "processor") and self.processor:
@@ -339,18 +325,13 @@ class UltralyticsStyleMosaicDataset(Dataset):
                 print(f"Processor failed for idx {idx}: {e}")
                 raise AttributeError("HuggingFace Processor failed")
         else:
-            # Return raw format if no processor
-            return {
-                "pixel_values": torch.from_numpy(img).permute(2, 0, 1).float() / 255.0,
-                "labels": target,
-            }
+            raise AttributeError("no processor found")
 
 
 def create_ultralytics_mosaic_dataset(
     dataset: DET_DS,
     target_size: int = 640,
     mosaic_prob: float = 0.8,
-    n_images: int = 4,
     disable_mosaic_epochs: int = 10,
     total_epochs: int = 100,
 ) -> UltralyticsStyleMosaicDataset:
@@ -376,7 +357,6 @@ def create_ultralytics_mosaic_dataset(
         dataset=dataset,
         target_size=target_size,
         mosaic_prob=mosaic_prob,
-        n_images=n_images,
         disable_mosaic_epochs=disable_mosaic_epochs,
         current_epoch=0,
         total_epochs=total_epochs,
