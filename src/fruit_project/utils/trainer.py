@@ -189,7 +189,7 @@ class Trainer:
                 {"params": other_params, "lr": self.cfg.lr / self.cfg.lr_enc_dec_factor}
             )
             print(
-                f"Other params: {sum(p.numel() for p in other_params)} parameters at LR {self.cfg.lr}"
+                f"Neck and other params: {sum(p.numel() for p in other_params)} parameters at LR {self.cfg.lr}"
             )
 
         # Medium LR for encoder/decoder
