@@ -5,6 +5,7 @@ from torch.amp import GradScaler
 from tqdm import tqdm
 from transformers.image_transforms import center_to_corners_format
 from omegaconf import DictConfig
+from fruit_project.utils.datasets.mosaic_dataset import UltralyticsStyleMosaicDataset
 from fruit_project.utils.early_stop import EarlyStopping
 from torch.optim.lr_scheduler import CosineAnnealingLR, SequentialLR, LinearLR
 from fruit_project.utils.metrics import ConfusionMatrix, MAPEvaluator
@@ -443,13 +444,15 @@ class Trainer:
         test_map = map_50_95_metrics.get("map", 0.0)
         test_map50 = map_50_95_metrics.get("map_50", 0.0)
         map_50_metrics = self.map_evaluator.map_50_metric.compute()
-        
+
         per_class_maps = []
         class_names = test_dl.dataset.labels
         if "classes" in map_50_metrics and "map_per_class" in map_50_metrics:
             class_map_dict = {
                 c.item(): m.item()
-                for c, m in zip(map_50_metrics["classes"], map_50_metrics["map_per_class"])
+                for c, m in zip(
+                    map_50_metrics["classes"], map_50_metrics["map_per_class"]
+                )
             }
             for i in range(len(class_names)):
                 per_class_maps.append(class_map_dict.get(i, 0.0))
@@ -491,6 +494,8 @@ class Trainer:
                 log_checkpoint_artifact(
                     self.run, ckpt_path, self.cfg.model.name, epoch, self.cfg.wait
                 )
+            if isinstance(self.train_dl.dataset, UltralyticsStyleMosaicDataset):
+                self.train_dl.dataset.update_epoch(epoch)
 
             train_loss = self.train(
                 epoch + 1,
