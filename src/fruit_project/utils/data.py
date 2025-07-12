@@ -210,7 +210,7 @@ def make_dataloaders(
 
     test_dl = DataLoader(
         test_ds,
-        batch_size=4,  # cfg.step_batch_size,
+        batch_size=cfg.step_batch_size,
         num_workers=cfg.num_workers,
         persistent_workers=True,
         pin_memory=True,
@@ -221,7 +221,7 @@ def make_dataloaders(
 
     val_dl = DataLoader(
         val_ds,
-        batch_size=4,  # cfg.step_batch_size,
+        batch_size=cfg.step_batch_size,
         num_workers=cfg.num_workers,
         persistent_workers=True,
         pin_memory=True,
