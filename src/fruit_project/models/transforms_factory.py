@@ -20,14 +20,13 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
             A.RandomSizedBBoxSafeCrop(
                 height=cfg.model.input_size,
                 width=cfg.model.input_size,
-                erosion_rate=0.1,
                 p=1.0,
             ),
             A.HorizontalFlip(p=0.5),
             A.SafeRotate(limit=0.1, p=0.3),
             A.OneOf(
                 [
-                    A.RGBShift(10, 10, 10, p=0.5),
+                    A.RGBShift(10, 10, 10, p=0.2),
                     A.HueSaturationValue(
                         hue_shift_limit=10,
                         sat_shift_limit=15,
@@ -37,6 +36,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                 ],
                 p=0.2,
             ),
+            A.Perspective(p=0.1),
             A.OneOf(
                 [
                     A.Blur(blur_limit=7, p=0.5),
@@ -69,28 +69,21 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
             A.RandomSizedBBoxSafeCrop(
                 height=cfg.model.input_size,
                 width=cfg.model.input_size,
-                p=0.8,
-                erosion_rate=0.05,
+                erosion_rate=0.1,
+                p=1.0,
             ),
             A.HorizontalFlip(p=0.5),
-            A.RGBShift(
-                p=0.5,
-                b_shift_limit=(-15.0, 15.0),
-                g_shift_limit=(-15.0, 15.0),
-                r_shift_limit=(-15.0, 15.0),
+            A.SafeRotate(limit=0.1, p=0.3),
+            A.OneOf(
+                [
+                    A.Blur(blur_limit=7, p=0.5),
+                    A.MotionBlur(blur_limit=7, p=0.5),
+                    A.Defocus(radius=(1, 5), alias_blur=(0.1, 0.25), p=0.1),
+                ],
+                p=0.2,
             ),
-            A.RandomBrightnessContrast(
-                p=0.5,
-                brightness_limit=(-0.2, 0.2),
-                contrast_limit=(-0.2, 0.2),
-            ),
-            A.HueSaturationValue(
-                p=0.3,
-                hue_shift_limit=(-10.0, 10.0),
-                sat_shift_limit=(-25.0, 25.0),
-                val_shift_limit=(-10.0, 10.0),
-            ),
-            A.CLAHE(p=0.2, clip_limit=(1.0, 2.0)),
+            A.RandomBrightnessContrast(ensure_safe_range=True, p=0.5),
+            A.CLAHE(clip_limit=1.5, p=0.3),
         ],
         bbox_params=A.BboxParams(
             format="coco",
