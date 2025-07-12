@@ -17,11 +17,6 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
 
     hard_train_transforms = A.Compose(
         [
-            A.RandomSizedBBoxSafeCrop(
-                height=cfg.model.input_size,
-                width=cfg.model.input_size,
-                p=1.0,
-            ),
             A.HorizontalFlip(p=0.5),
             A.SafeRotate(limit=0.1, p=0.3),
             A.OneOf(
@@ -74,12 +69,6 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
     )
     safe_train_transforms = A.Compose(
         [
-            A.RandomSizedBBoxSafeCrop(
-                height=cfg.model.input_size,
-                width=cfg.model.input_size,
-                erosion_rate=0.1,
-                p=1.0,
-            ),
             A.HorizontalFlip(p=0.5),
             A.SafeRotate(limit=0.1, p=0.2),
             A.OneOf(
