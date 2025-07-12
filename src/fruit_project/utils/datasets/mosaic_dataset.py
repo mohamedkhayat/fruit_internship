@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Dict, Tuple
 import numpy as np
 from torch.utils.data import Dataset
 from .det_dataset import DET_DS, format_for_hf_processor
@@ -236,6 +236,7 @@ class UltralyticsStyleMosaicDataset(Dataset):
             total_epochs: Total training epochs
         """
         self.dataset = dataset
+        self.easy_transforms = None
         self.target_size = target_size
         self.mosaic_prob = mosaic_prob
         self.disable_mosaic_epochs = disable_mosaic_epochs
@@ -243,9 +244,7 @@ class UltralyticsStyleMosaicDataset(Dataset):
         self.total_epochs = total_epochs
 
         # Initialize mosaic augmentation
-        self.mosaic_aug = UltralyticsStyleMosaic(
-            target_size=target_size
-        )
+        self.mosaic_aug = UltralyticsStyleMosaic(target_size=target_size)
 
         # Copy dataset attributes
         self.transforms = dataset.transforms
@@ -269,6 +268,7 @@ class UltralyticsStyleMosaicDataset(Dataset):
         """
         # Disable mosaic in last N epochs
         if self.current_epoch >= (self.total_epochs - self.disable_mosaic_epochs):
+            self.dataset.transforms = self.easy_transforms
             return False
 
         # Apply based on probability
