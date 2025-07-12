@@ -96,6 +96,7 @@ class MosaicDataset(Dataset):
         self.transforms = self.dataset.transforms
         self.processor = self.dataset.processor
         self.id2lbl = self.dataset.id2lbl
+        self.lbl2id = self.dataset.lbl2id
         self.labels = self.dataset.labels
 
     def __len__(self):
