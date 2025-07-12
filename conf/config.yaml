@@ -32,4 +32,6 @@ freeze_backbone : True
 freeze_encoder : False
 partially_freeze_backbone : False
 upload : False
-use_mosaic : True
+mosaic:
+  use : True
+  prob : 0.8
