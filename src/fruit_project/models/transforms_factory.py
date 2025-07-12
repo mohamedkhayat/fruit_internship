@@ -81,17 +81,17 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                 p=1.0,
             ),
             A.HorizontalFlip(p=0.5),
-            A.SafeRotate(limit=0.1, p=0.3),
+            A.SafeRotate(limit=0.1, p=0.2),
             A.OneOf(
                 [
-                    A.Blur(blur_limit=7, p=0.5),
-                    A.MotionBlur(blur_limit=7, p=0.5),
+                    A.Blur(blur_limit=5, p=0.5),
+                    A.MotionBlur(blur_limit=5, p=0.5),
                     A.Defocus(radius=(1, 5), alias_blur=(0.1, 0.25), p=0.1),
                 ],
                 p=0.2,
             ),
-            A.RandomBrightnessContrast(ensure_safe_range=True, p=0.5),
-            A.CLAHE(clip_limit=1.5, p=0.3),
+            A.RandomBrightnessContrast(ensure_safe_range=True, p=0.3),
+            A.CLAHE(clip_limit=1.5, p=0.2),
         ],
         bbox_params=A.BboxParams(
             format="coco",
