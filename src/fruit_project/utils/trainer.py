@@ -143,19 +143,38 @@ class Trainer:
             and p.requires_grad
         ]
 
-        # Remove prediction head parameters from encoder_decoder_params to avoid overlap
+        backbone_param_ids = {id(p) for p in backbone_params}
+        encoder_decoder_param_ids = {id(p) for p in encoder_decoder_params}
+        prediction_head_param_ids = {id(p) for p in prediction_head_params}
+
+        # Remove overlaps
         encoder_decoder_params = [
-            p for p in encoder_decoder_params if p not in prediction_head_params
+            p
+            for p in encoder_decoder_params
+            if id(p) not in prediction_head_param_ids
+            and id(p) not in backbone_param_ids
+        ]
+        prediction_head_params = [
+            p
+            for p in prediction_head_params
+            if id(p) not in backbone_param_ids
+            and id(p) not in encoder_decoder_param_ids
+        ]
+        backbone_params = [
+            p
+            for p in backbone_params
+            if id(p) not in encoder_decoder_param_ids
+            and id(p) not in prediction_head_param_ids
         ]
 
         # Everything else (Neck, FPN, PAN : medium LR)
+        all_used_ids = (
+            backbone_param_ids | encoder_decoder_param_ids | prediction_head_param_ids
+        )
         other_params = [
             p
-            for n, p in self.model.named_parameters()
-            if n not in backbone_params
-            and n not in encoder_decoder_params
-            and n not in prediction_head_params
-            and p.requires_grad
+            for p in self.model.parameters()
+            if id(p) not in all_used_ids and p.requires_grad
         ]
 
         param_dicts = []
