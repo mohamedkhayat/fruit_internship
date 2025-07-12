@@ -448,12 +448,12 @@ class Trainer:
         test_precision = map_50_95_metrics.get("precision", 0.0)
 
         class_names = test_dl.dataset.labels
-        
+
         test_metrics = {
             "map@50:95": test_map,
             "map@50": test_map50,
             "map@50_per_class": self.map_evaluator.get_per_class(
-            map_50_metrics, metric="map_per_class"
+                map_50_metrics, metric="map_per_class"
             ),
             "precision_per_class": self.map_evaluator.get_per_class(
                 map_50_metrics, metric="precision_per_class"
@@ -464,7 +464,7 @@ class Trainer:
             "recall": test_recall,
             "precision": test_precision,
         }
-        
+
         num_batches = len(test_dl)
         epoch_loss = {k: v / num_batches for k, v in epoch_loss.items()}
 
@@ -479,7 +479,9 @@ class Trainer:
 
         for i, class_name in enumerate(class_names):
             if i < len(test_metrics["map@50_per_class"]):
-                tqdm.write(f"\t\t{class_name:<15}: {test_metrics['map@50_per_class'][i].item():.4f}")
+                tqdm.write(
+                    f"\t\t{class_name:<15}: {test_metrics['map@50_per_class'][i].item():.4f}"
+                )
 
         return epoch_loss, test_metrics, cm
 
@@ -522,7 +524,10 @@ class Trainer:
                     self,
                 )
 
-            if self.early_stopping(test_metrics["map@50:95"], self.model) and epoch > self.cfg.warmup_epochs + 5:
+            if (
+                self.early_stopping(test_metrics["map@50:95"], self.model)
+                and epoch > self.cfg.warmup_epochs + 5
+            ):
                 tqdm.write(f"Early stopping triggered at epoch {epoch + 1}.")
                 break
 
