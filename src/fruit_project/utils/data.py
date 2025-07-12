@@ -4,6 +4,7 @@ from fruit_project.utils.datasets.det_dataset import DET_DS
 from torch.utils.data import DataLoader, WeightedRandomSampler
 from omegaconf import DictConfig
 from fruit_project.utils.datasets.mosaic_dataset import (
+    UltralyticsStyleMosaicDataset,
     create_ultralytics_mosaic_dataset,
 )
 from fruit_project.utils.general import seed_worker
@@ -298,7 +299,12 @@ def set_transforms(
     Returns:
         Tuple[DataLoader, DataLoader, DataLoader]: Updated dataloaders with transformations applied.
     """
+
     train_dl.dataset.transforms = transforms["train"]
+
+    if isinstance(train_dl.dataset, UltralyticsStyleMosaicDataset):
+        train_dl.dataset.easy_transforms = transforms["train_easy"]
+
     test_dl.dataset.transforms = transforms["test"]
     val_dl.dataset.transforms = transforms["test"]
 
