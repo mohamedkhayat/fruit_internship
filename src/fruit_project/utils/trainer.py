@@ -448,14 +448,14 @@ class Trainer:
         test_precision = map_50_95_metrics.get("precision", 0.0)
 
         class_names = test_dl.dataset.labels
-        test_map_per_class = self.map_evaluator.get_per_class(
-            map_50_metrics, class_names, metric="map_per_class"
-        )
+        
 
         test_metrics = {
             "map@50:95": test_map,
             "map@50": test_map50,
-            "map@50_per_class": test_map_per_class,
+            "map@50_per_class": self.map_evaluator.get_per_class(
+            map_50_metrics, class_names, metric="map_per_class"
+            ),
             "precision_per_class": self.map_evaluator.get_per_class(
                 map_50_metrics, class_names, metric="precision_per_class"
             ),
@@ -465,21 +465,22 @@ class Trainer:
             "recall": test_recall,
             "precision": test_precision,
         }
+        
         num_batches = len(test_dl)
         epoch_loss = {k: v / num_batches for k, v in epoch_loss.items()}
 
         tqdm.write(
             f"\tEval  --- Loss: {epoch_loss['loss']:.4f}, Class Loss : {epoch_loss['class_loss']:.4f}, Bbox Loss : {epoch_loss['bbox_loss']:.4f}, Giou Loss : {epoch_loss['giou_loss']:.4f}, mAP50-95: {test_map:.4f}, mAP@50 : {test_map50:.4f}"
         )
-
+        
         tqdm.write("\t--- Per-class mAP@50 ---")
         class_names = test_dl.dataset.labels
-        if test_map_per_class.is_cuda:
-            test_map_per_class = test_map_per_class.cpu()
+        if test_metrics["map@50_per_class"].is_cuda:
+            test_metrics["map@50_per_class"] = test_metrics["map@50_per_class"].cpu()
 
         for i, class_name in enumerate(class_names):
-            if i < len(test_map_per_class):
-                tqdm.write(f"\t\t{class_name:<15}: {test_map_per_class[i].item():.4f}")
+            if i < len(test_metrics["map@50_per_class"]):
+                tqdm.write(f"\t\t{class_name:<15}: {test_metrics["map@50_per_class"][i].item():.4f}")
 
         return epoch_loss, test_metrics, cm
 
