@@ -480,7 +480,7 @@ class Trainer:
 
         for i, class_name in enumerate(class_names):
             if i < len(test_metrics["map@50_per_class"]):
-                tqdm.write(f"\t\t{class_name:<15}: {test_metrics["map@50_per_class"][i].item():.4f}")
+                tqdm.write(f"\t\t{class_name:<15}: {test_metrics['map@50_per_class'][i].item():.4f}")
 
         return epoch_loss, test_metrics, cm
 
