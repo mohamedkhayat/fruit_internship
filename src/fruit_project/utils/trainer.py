@@ -472,7 +472,7 @@ class Trainer:
         tqdm.write(
             f"\tEval  --- Loss: {epoch_loss['loss']:.4f}, Class Loss : {epoch_loss['class_loss']:.4f}, Bbox Loss : {epoch_loss['bbox_loss']:.4f}, Giou Loss : {epoch_loss['giou_loss']:.4f}, mAP50-95: {test_map:.4f}, mAP@50 : {test_map50:.4f}"
         )
-        
+
         tqdm.write("\t--- Per-class mAP@50 ---")
         class_names = test_dl.dataset.labels
         if test_metrics["map@50_per_class"].is_cuda:
@@ -523,7 +523,7 @@ class Trainer:
                     self,
                 )
 
-            if self.early_stopping(test_metrics["map@50:95"], self.model):
+            if self.early_stopping(test_metrics["map@50:95"], self.model) and epoch > self.cfg.warmup_epochs + 5:
                 tqdm.write(f"Early stopping triggered at epoch {epoch + 1}.")
                 break
 
