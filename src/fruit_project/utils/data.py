@@ -87,7 +87,7 @@ def make_datasets(cfg: DictConfig) -> Tuple[DET_DS, DET_DS, DET_DS]:
             dataset=train_ds_base,
             target_size=train_ds_base.input_size,
             mosaic_prob=cfg.mosaic.prob,
-            disable_mosaic_epochs=10,
+            disable_mosaic_epochs=cfg.mosaic.disable_epoch,
             total_epochs=cfg.epochs,
         )
     else:
