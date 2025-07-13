@@ -3,12 +3,15 @@
 
 import functools
 from tqdm import tqdm
+from fruit_project.utils.datasets.alb_mosaic_dataset import (
+    AlbumentationsMosaicDataset,
+    create_albumentations_mosaic_dataset,
+)
 from fruit_project.utils.datasets.det_dataset import DET_DS
 from torch.utils.data import DataLoader, WeightedRandomSampler
 from omegaconf import DictConfig
 from fruit_project.utils.datasets.mosaic_dataset import (
     UltralyticsStyleMosaicDataset,
-    create_ultralytics_mosaic_dataset,
 )
 from fruit_project.utils.general import seed_worker
 import os
@@ -84,18 +87,6 @@ def make_datasets(cfg: DictConfig) -> Tuple[DET_DS, DET_DS, DET_DS]:
         cfg.model.input_size,
     )
 
-    if cfg.mosaic.use:
-        print("Applying Mosaic augmentation to the training dataset.")
-        train_ds = create_ultralytics_mosaic_dataset(
-            dataset=train_ds_base,
-            target_size=train_ds_base.input_size,
-            mosaic_prob=cfg.mosaic.prob,
-            disable_mosaic_epochs=cfg.mosaic.disable_epoch,
-            total_epochs=cfg.epochs,
-        )
-    else:
-        train_ds = train_ds_base
-
     test_ds = DET_DS(
         data_dir,
         "test",
@@ -114,7 +105,7 @@ def make_datasets(cfg: DictConfig) -> Tuple[DET_DS, DET_DS, DET_DS]:
         None,
         cfg.model.input_size,
     )
-    return train_ds, test_ds, val_ds
+    return train_ds_base, test_ds, val_ds
 
 
 def get_sampler(train_ds: DET_DS, generator) -> WeightedRandomSampler:
@@ -169,7 +160,7 @@ def get_sampler(train_ds: DET_DS, generator) -> WeightedRandomSampler:
 
 def make_dataloaders(
     cfg: DictConfig,
-    train_ds: DET_DS,
+    train_ds_base: DET_DS,
     test_ds: DET_DS,
     val_ds: DET_DS,
     generator: torch.Generator,
@@ -196,9 +187,36 @@ def make_dataloaders(
     worker_init = functools.partial(seed_worker, base_seed=cfg.seed)
     collate = functools.partial(collate_fn)
 
-    for ds in [train_ds, test_ds, val_ds]:
+    for ds in [train_ds_base, test_ds, val_ds]:
         ds.processor = processor
-
+        
+    train_ds_base, test_ds, val_ds = set_transforms(
+        train_ds_base, test_ds, val_ds, transforms, cfg
+    )
+    if cfg.mosaic.use:
+        print("Applying Mosaic augmentation to the training dataset.")
+        """
+        train_ds = create_ultralytics_mosaic_dataset(
+            dataset=train_ds_base,
+            target_size=train_ds_base.input_size,
+            mosaic_prob=cfg.mosaic.prob,
+            disable_mosaic_epochs=cfg.mosaic.disable_epoch,
+            total_epochs=cfg.epochs,
+        )
+        """
+        train_ds= create_albumentations_mosaic_dataset(
+            train_ds_base,
+            cfg.model.input_size,
+            cfg.mosaic.prob,
+            cfg.mosaic.disable_epoch,
+            cfg.epochs,
+            transforms["train"],
+            transforms["train_easy"],
+            cfg.min_viz,
+            cfg.min_area
+        )
+    else:
+        train_ds = train_ds_base
     sampler = None
     if cfg.do_sample:
         sampler = get_sampler(train_ds, generator)
@@ -239,7 +257,7 @@ def make_dataloaders(
         collate_fn=collate,
     )
 
-    train_dl, test_dl, val_dl = set_transforms(train_dl, test_dl, val_dl, transforms)
+    
     test_sample = next(iter(test_dl))
     return train_dl, test_dl, val_dl, test_sample
 
@@ -285,8 +303,12 @@ def collate_fn(batch: BatchEncoding) -> Dict:
 
 
 def set_transforms(
-    train_dl: DataLoader, test_dl: DataLoader, val_dl: DataLoader, transforms: Compose
-) -> Tuple[DataLoader, DataLoader, DataLoader]:
+    train_ds,
+    test_ds,
+    val_ds,
+    transforms: Compose,
+    cfg,
+):
     """
     Sets transformations for the datasets in the dataloaders.
 
@@ -300,12 +322,9 @@ def set_transforms(
         Tuple[DataLoader, DataLoader, DataLoader]: Updated dataloaders with transformations applied.
     """
 
-    train_dl.dataset.transforms = transforms["train"]
+    train_ds.transforms = transforms["train"]
 
-    if isinstance(train_dl.dataset, UltralyticsStyleMosaicDataset):
-        train_dl.dataset.easy_transforms = transforms["train_easy"]
+    test_ds.transforms = transforms["test"]
+    val_ds.transforms = transforms["test"]
 
-    test_dl.dataset.transforms = transforms["test"]
-    val_dl.dataset.transforms = transforms["test"]
-
-    return train_dl, test_dl, val_dl
+    return train_ds, test_ds, val_ds
