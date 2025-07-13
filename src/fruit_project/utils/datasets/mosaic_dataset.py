@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2025 Mohamed Khayat
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from typing import Dict, Tuple
+from typing import Tuple
 import numpy as np
 from torch.utils.data import Dataset
 from .det_dataset import DET_DS, format_for_hf_processor

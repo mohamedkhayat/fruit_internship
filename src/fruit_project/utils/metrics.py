@@ -1,16 +1,14 @@
 # SPDX-FileCopyrightText: 2025 Mohamed Khayat
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from torchvision.ops import box_iou
 from transformers.image_transforms import center_to_corners_format
-from dataclasses import dataclass
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
-from ultralytics.utils.metrics import DetMetrics
 
 
 class ConfusionMatrix:
@@ -293,7 +291,11 @@ class MAPEvaluator:
         # --- slice the tensor ---
         iou_idx = self.map_50_metric.iou_thresholds.index(0.5)
         prec_curves = prec[iou_idx, :, :, 0, -1].to(self.device)  # R×K
-        rec_vec = torch.tensor(self.map_50_metric.rec_thresholds, dtype=prec_curves.dtype, device=self.device)
+        rec_vec = torch.tensor(
+            self.map_50_metric.rec_thresholds,
+            dtype=prec_curves.dtype,
+            device=self.device,
+        )
         # --- compute F1 and pick best threshold per class ---
         f1 = (
             2
