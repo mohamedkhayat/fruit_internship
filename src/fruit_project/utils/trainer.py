@@ -8,6 +8,7 @@ from torch.amp import GradScaler
 from tqdm import tqdm
 from transformers.image_transforms import center_to_corners_format
 from omegaconf import DictConfig
+from fruit_project.utils.datasets.alb_mosaic_dataset import AlbumentationsMosaicDataset
 from fruit_project.utils.datasets.mosaic_dataset import UltralyticsStyleMosaicDataset
 from fruit_project.utils.early_stop import EarlyStopping
 from torch.optim.lr_scheduler import CosineAnnealingLR, SequentialLR, LinearLR
@@ -505,7 +506,10 @@ class Trainer:
                 log_checkpoint_artifact(
                     self.run, ckpt_path, self.cfg.model.name, epoch, self.cfg.wait
                 )
-            if isinstance(self.train_dl.dataset, UltralyticsStyleMosaicDataset):
+            if isinstance(
+                self.train_dl.dataset,
+                (UltralyticsStyleMosaicDataset, AlbumentationsMosaicDataset),
+            ):
                 self.train_dl.dataset.update_epoch(epoch)
 
             train_loss = self.train(
