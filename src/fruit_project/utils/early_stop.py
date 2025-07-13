@@ -137,7 +137,7 @@ class EarlyStopping:
             model.load_state_dict(torch.load(best_path, weights_only=True))
             if self.log and self.upload:
                 artifact = wandb.Artifact(
-                    name=f"{self.name.split('_')[0]}",
+                    name=f"model",
                     type="model-earlystopping-bestmodel",
                     description="best model at epoch",
                 )
