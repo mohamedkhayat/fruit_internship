@@ -22,18 +22,28 @@ Key components:
 ## Directory Structure
 
 ```
-
 mohamedkhayat-fruit_internship/
 ├── conf/                   # Hydra configuration files
 │   ├── config.yaml         # Base training config
 │   └── model/              # Model-specific configs
-├── docs/                   # Sphinx documentation (auto-generated)
-├── src/fruit\_project/      # Core codebase (models, training, utils)
-├── requirements.txt        # Python dependencies
+├── docs/                   # Sphinx documentation
+│   ├── conf.py             # Sphinx configuration
+│   └── index.rst           # Main documentation file
+├── src/fruit_project/      # Core codebase
+│   ├── main.py             # Main training script
+│   ├── models/             # Model-related modules
+│   │   ├── model_factory.py      # Factory for creating models
+│   │   └── transforms_factory.py # Factory for creating data augmentations
+│   └── utils/              # Utility modules
+│       ├── data.py         # Data loading and processing
+│       ├── early_stop.py   # Early stopping logic
+│       ├── general.py      # General utility functions
+│       ├── logging.py      # Logging utilities
+│       ├── metrics.py      # Metrics and evaluation
+│       └── trainer.py      # Training loop
 ├── pyproject.toml          # Build and tool configuration
 └── README.md               # Project description
-
-````
+```
 
 ---
 
@@ -141,8 +151,32 @@ python src/fruit_project/main.py model=detrv2_50 lr=5e-5 aug=safe
 
 ### Dataset Setup
 
-* Data must be in YOLO format under `data/Fruits-detection/`
+* Data must be in YOLO format under `data/Fruit_dataset/`
 * To auto-download from Kaggle, set `download_data: true` in `conf/config.yaml` or `download_data=True` as an argument and set the corresponding environement variables
+
+---
+
+## Configuration
+
+The training process is configured using Hydra. The main configuration file is `conf/config.yaml`.
+
+Here are some of the key configuration options:
+
+| Parameter | Description | Default |
+|---|---|---|
+| `effective_batch_size` | The total batch size across all GPUs. | `64` |
+| `step_batch_size` | The batch size for each gradient accumulation step. | `8` |
+| `epochs` | The total number of training epochs. | `30` |
+| `lr` | The learning rate. | `0.0001` |
+| `weight_decay` | The weight decay for the optimizer. | `0.01` |
+| `warmup_epochs` | The number of warmup epochs for the learning rate scheduler. | `5` |
+| `root_dir` | The root directory of the dataset. | `Fruit_dataset` |
+| `log` | Whether to log to Weights & Biases. | `True` |
+| `seed` | The random seed for reproducibility. | `42` |
+| `patience` | The patience for early stopping. | `15` |
+| `aug` | The augmentation level to use (`hard` or `safe`). | `hard` |
+| `do_sample` | Whether to use weighted random sampling. | `True` |
+| `freeze_backbone` | Whether to freeze the backbone of the model. | `True` |
 
 ---
 
@@ -150,11 +184,12 @@ python src/fruit_project/main.py model=detrv2_50 lr=5e-5 aug=safe
 
 * Transformer-based object detection (RT-DETRv2)
 * Modular model factory (configurable via YAML)
-* Safe/strong augmentation pipelines (Albumentations)
+* Differentiable learning rates for fine-tuning (backbone, encoder/decoder, prediction heads)
+* Advanced augmentation pipelines with Albumentations, including Mosaic
 * Stratified sampling (max/mean) to handle class imbalance
 * Full integration with Weights & Biases:
 
-  * Training/validation metrics
+  * Detailed metric logging: mAP, mAP@50, Precision, Recall, and loss components
   * Bounding box visualizations
   * Class distribution and confusion matrix plots
   * Checkpoint artifact logging
