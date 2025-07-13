@@ -1,6 +1,3 @@
-# SPDX-FileCopyrightText: 2025 Mohamed Khayat
-# SPDX-License-Identifier: AGPL-3.0-or-later for me for every file
-
 # Configuration file for the Sphinx documentation builder.
 #
 # For the full list of built-in configuration values, see the documentation:
