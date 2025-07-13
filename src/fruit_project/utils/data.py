@@ -162,7 +162,7 @@ def make_dataloaders(
     generator: torch.Generator,
     processor: AutoImageProcessor,
     transforms: Compose,
-) -> Tuple[DataLoader, DataLoader, DataLoader, Tuple[torch.Tensor, torch.Tensor]]:
+) -> Tuple[DataLoader, DataLoader, DataLoader, Dict]:
     """
     Creates dataloaders for training, testing, and validation datasets.
 
