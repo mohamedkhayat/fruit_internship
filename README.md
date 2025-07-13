@@ -167,7 +167,9 @@ Here are some of the key configuration options:
 | `effective_batch_size` | The total batch size across all GPUs. | `64` |
 | `step_batch_size` | The batch size for each gradient accumulation step. | `8` |
 | `epochs` | The total number of training epochs. | `30` |
-| `lr` | The learning rate. | `0.0001` |
+| `lr` | The base learning rate for the prediction heads. | `0.0001` |
+| `lr_back_factor` | Factor to divide `lr` by for the backbone. | `50` |
+| `lr_enc_dec_factor` | Factor to divide `lr` by for the transformer encoder/decoder. | `5` |
 | `weight_decay` | The weight decay for the optimizer. | `0.01` |
 | `warmup_epochs` | The number of warmup epochs for the learning rate scheduler. | `5` |
 | `root_dir` | The root directory of the dataset. | `Fruit_dataset` |
@@ -177,6 +179,8 @@ Here are some of the key configuration options:
 | `aug` | The augmentation level to use (`hard` or `safe`). | `hard` |
 | `do_sample` | Whether to use weighted random sampling. | `True` |
 | `freeze_backbone` | Whether to freeze the backbone of the model. | `True` |
+| `partially_freeze_backbone` | Unfreezes the last stage of the backbone for fine-tuning. | `False` |
+| `freeze_encoder` | Whether to freeze the transformer encoder. | `False` |
 | `mosaic.use` | Whether to use Mosaic augmentation. | `True` |
 | `mosaic.prob` | The probability of applying Mosaic augmentation. | `0.8` |
 | `mosaic.disable_epoch` | The epoch at which to disable Mosaic augmentation. | `10` |
