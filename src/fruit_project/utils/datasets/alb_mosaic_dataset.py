@@ -47,7 +47,14 @@ class AlbumentationsMosaicDataset(Dataset):
         self.config_dir = dataset.config_dir
         self.input_size = dataset.input_size
 
-        self.mosaic_transform = A.Mosaic(p=1.0, metadata_key="mosaic_metadata")
+        self.mosaic_transform = A.Mosaic(
+            grid_yx=(2, 2),
+            target_size=(self.input_size, self.input_size),
+            cell_shape=(target_size, target_size),
+            fill=114,
+            metadata_key="mosaic_metadata",
+            p=1.0,
+        )
         self.bbox_params = A.BboxParams(
             format="coco",
             label_fields=["labels"],
@@ -57,9 +64,6 @@ class AlbumentationsMosaicDataset(Dataset):
         self.hard_transforms = hard_transforms
         self.easy_transforms = easy_transforms
 
-        self.mosaic_transform = A.Mosaic(p=1.0, metadata_key="mosaic_metadata")
-
-        # Create the transform pipeline for the MOSAIC phase (Mosaic + Hard Augs)
         mosaic_pipeline = [
             self.mosaic_transform,
             A.Resize(self.target_size, self.target_size),
@@ -93,7 +97,7 @@ class AlbumentationsMosaicDataset(Dataset):
 
     def _validate_and_clip_bbox(
         self, bbox: List[float], img_width: int, img_height: int
-    ) -> List[float]:
+    ) -> List[float] | None:
         """Validate and clip bounding box coordinates."""
         x, y, w, h = bbox
         x = max(0, min(x, img_width - 1))
