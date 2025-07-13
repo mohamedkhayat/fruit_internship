@@ -187,19 +187,11 @@ def make_dataloaders(
         ds.processor = processor
 
     train_ds_base, test_ds, val_ds = set_transforms(
-        train_ds_base, test_ds, val_ds, transforms, cfg
+        train_ds_base, test_ds, val_ds, transforms
     )
+
     if cfg.mosaic.use:
         print("Applying Mosaic augmentation to the training dataset.")
-        """
-        train_ds = create_ultralytics_mosaic_dataset(
-            dataset=train_ds_base,
-            target_size=train_ds_base.input_size,
-            mosaic_prob=cfg.mosaic.prob,
-            disable_mosaic_epochs=cfg.mosaic.disable_epoch,
-            total_epochs=cfg.epochs,
-        )
-        """
         train_ds = create_albumentations_mosaic_dataset(
             train_ds_base,
             cfg.model.input_size,
@@ -302,7 +294,6 @@ def set_transforms(
     test_ds,
     val_ds,
     transforms: Compose,
-    cfg,
 ):
     """
     Sets transformations for the datasets in the dataloaders.
@@ -318,7 +309,6 @@ def set_transforms(
     """
 
     train_ds.transforms = transforms["train"]
-
     test_ds.transforms = transforms["test"]
     val_ds.transforms = transforms["test"]
 
