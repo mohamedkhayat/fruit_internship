@@ -617,7 +617,7 @@ class Trainer:
         tqdm.write("done saving checkpoint")
         return path
 
-    def _load_checkpoint(self, path: str) -> None:
+    def _load_checkpoint(self, path: str, model_only : bool = True) -> None:
         """
         Loads a checkpoint and restores the state of the model, optimizer, scheduler, and scaler.
 
@@ -626,8 +626,13 @@ class Trainer:
         """
         tqdm.write("loading checkpoint")
         ckpt = torch.load(path, map_location=self.device)
-        self.model.load_state_dict(ckpt["model"])
-        self.optimizer.load_state_dict(ckpt["optimizer"])
-        self.scheduler.load_state_dict(ckpt["scheduler"])
-        self.scaler.load_state_dict(ckpt["scaler"])
-        self.start_epoch = ckpt["epoch"] + 1
+        try :
+            self.model.load_state_dict(ckpt["model"])
+        except KeyError:
+            self.model.load_state_dict(ckpt)
+
+        if not model_only:
+            self.optimizer.load_state_dict(ckpt["optimizer"])
+            self.scheduler.load_state_dict(ckpt["scheduler"])
+            self.scaler.load_state_dict(ckpt["scaler"])
+            self.start_epoch = ckpt["epoch"] + 1
