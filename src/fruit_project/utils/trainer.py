@@ -521,7 +521,10 @@ class Trainer:
         epoch_loss = {k: v / num_batches for k, v in epoch_loss.items()}
 
         tqdm.write(
-            f"\tEval  --- Loss: {epoch_loss['loss']:.4f}, Class Loss : {epoch_loss['class_loss']:.4f}, Bbox Loss : {epoch_loss['bbox_loss']:.4f}, Giou Loss : {epoch_loss['giou_loss']:.4f}, mAP50-95: {test_map:.4f}, mAP@50 : {test_map50:.4f}"
+            f"\tEval  --- Loss: {epoch_loss['loss']:.4f}, Class Loss : {epoch_loss['class_loss']:.4f}, Bbox Loss : {epoch_loss['bbox_loss']:.4f}, Giou Loss : {epoch_loss['giou_loss']:.4f}"
+        )
+        tqdm.write(
+            f"\tmAP50-95: {test_map:.4f}, mAP@50 : {test_map50:.4f}"
         )
 
         tqdm.write("\t--- Per-class mAP@50 ---")
