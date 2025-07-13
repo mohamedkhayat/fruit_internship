@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2025 Mohamed Khayat
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 from torch.utils.data import Dataset
 import cv2
 from typing import List, Tuple

@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2025 Mohamed Khayat
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 import torch
 import torch.nn as nn
 from fruit_project.models.transforms_factory import get_transforms
