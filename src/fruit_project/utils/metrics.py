@@ -293,8 +293,7 @@ class MAPEvaluator:
         # --- slice the tensor ---
         iou_idx = self.map_50_metric.iou_thresholds.index(0.5)
         prec_curves = prec[iou_idx, :, :, 0, -1]  # R×K
-        rec_vec = self.map_50_metric.rec_thresholds
-
+        rec_vec = torch.tensor(self.map_50_metric.rec_thresholds, device=self.device)
         # --- compute F1 and pick best threshold per class ---
         f1 = (
             2
