@@ -177,6 +177,9 @@ Here are some of the key configuration options:
 | `aug` | The augmentation level to use (`hard` or `safe`). | `hard` |
 | `do_sample` | Whether to use weighted random sampling. | `True` |
 | `freeze_backbone` | Whether to freeze the backbone of the model. | `True` |
+| `mosaic.use` | Whether to use Mosaic augmentation. | `True` |
+| `mosaic.prob` | The probability of applying Mosaic augmentation. | `0.8` |
+| `mosaic.disable_epoch` | The epoch at which to disable Mosaic augmentation. | `10` |
 
 ---
 
@@ -185,6 +188,7 @@ Here are some of the key configuration options:
 * Transformer-based object detection (RT-DETRv2)
 * Modular model factory (configurable via YAML)
 * Differentiable learning rates for fine-tuning (backbone, encoder/decoder, prediction heads)
+* Gradient accumulation to simulate larger batch sizes
 * Advanced augmentation pipelines with Albumentations, including Mosaic
 * Stratified sampling (max/mean) to handle class imbalance
 * Full integration with Weights & Biases:
