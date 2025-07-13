@@ -48,7 +48,12 @@ class AlbumentationsMosaicDataset(Dataset):
         self.input_size = dataset.input_size
 
         self.mosaic_transform = A.Mosaic(p=1.0, metadata_key="mosaic_metadata")
-
+        self.bbox_params = A.BboxParams(
+            format="coco",
+            label_fields=["labels"],
+            min_visibility=min_visibility,
+            min_area=min_area,
+        )
         self.hard_transforms = hard_transforms
         self.easy_transforms = easy_transforms
 
@@ -64,12 +69,7 @@ class AlbumentationsMosaicDataset(Dataset):
 
         self.mosaic_compose = A.Compose(
             mosaic_pipeline,
-            bbox_params=A.BboxParams(
-                format="coco",
-                label_fields=["labels"],
-                min_visibility=min_visibility,
-                min_area=min_area,
-            ),
+            bbox_params=self.bbox_params,
         )
 
         easy_pipeline = [A.Resize(self.target_size, self.target_size)]
@@ -78,12 +78,7 @@ class AlbumentationsMosaicDataset(Dataset):
 
         self.easy_compose = A.Compose(
             easy_pipeline,
-            bbox_params=A.BboxParams(
-                format="coco",
-                label_fields=["labels"],
-                min_visibility=min_visibility,
-                min_area=min_area,
-            ),
+            bbox_params=self.bbox_params,
         )
 
     def update_epoch(self, epoch: int):
@@ -196,10 +191,12 @@ class AlbumentationsMosaicDataset(Dataset):
         if is_final_epochs or use_easy_transforms:
             transform_pipeline = self.easy_compose
         else:
+            fallback_hard_pipeline = [A.Resize(self.target_size, self.target_size)]
+            if self.hard_transforms:
+                fallback_hard_pipeline.extend(self.hard_transforms.transforms)
+
             transform_pipeline = A.Compose(
-                [A.Resize(self.target_size, self.target_size)]
-                + self.hard_transforms.transforms,
-                bbox_params=self.easy_compose.bbox_params,
+                fallback_hard_pipeline, bbox_params=self.bbox_params
             )
 
         try:
