@@ -9,13 +9,13 @@ from fruit_project.models.model_factory import get_model
 import torch
 import cv2
 from fruit_project.utils.trainer import Trainer
+from fruit_project.utils.general import set_seed
 from fruit_project.utils.logging import (
     initwandb,
     get_run_name,
     log_transforms,
     log_images,
 )
-from fruit_project.utils.general import set_seed
 
 cv2.setNumThreads(0)
 
