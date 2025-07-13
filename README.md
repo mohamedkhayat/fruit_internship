@@ -183,4 +183,6 @@ view docs:
 
 ## License
 
-MIT License © 2025 Mohamed Khayat
+This project is licensed under the AGPL‑3.0‑or‑later license. See [LICENSE](LICENSE) for details.
+
+If you deploy this code (e.g., via a web service), you must make the full source code available to your users, per AGPL §13.
