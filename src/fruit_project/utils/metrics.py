@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
@@ -187,7 +187,7 @@ class MAPEvaluator:
         ).to(device)
         self.map_metric.warn_on_many_detections = False
         self.map_50_metric = MeanAveragePrecision(
-            box_format="xyxy", class_metrics=True, iou_thresholds=[0.5]
+            box_format="xyxy", class_metrics=True, iou_thresholds=[0.5], extended_summary=True
         ).to(device)
         self.map_50_metric.warn_on_many_detections = False
         self.device = device
@@ -286,3 +286,57 @@ class MAPEvaluator:
         per_class_metric = torch.tensor(per_class_metric)
 
         return per_class_metric
+
+    def get_optimal_f1_ultralytics_style(self, metrics_dict):
+        prec = metrics_dict["precision"]   # T×R×K×A×M
+        classes_present = metrics_dict["classes"].to(device)
+        device = prec.device
+
+        # --- slice the tensor ---
+        iou_idx = (self.map_50_metric.iou_thresholds == 0.5).nonzero(as_tuple=True)[0].item()
+        prec_curves = prec[iou_idx, :, :, 0, -1]                       # R×K
+        rec_vec     = self.map_50_metric.rec_thresholds 
+
+        # --- compute F1 and pick best threshold per class ---
+        f1 = 2 * prec_curves * rec_vec[:, None] / (prec_curves + rec_vec[:, None] + 1e-16)
+        best_thr = torch.argmax(f1, dim=0)
+        opt_p = prec_curves[best_thr, torch.arange(prec_curves.size(1))]
+        opt_r = rec_vec[best_thr]
+
+        # --- place into full-length tensors, zero for missing classes ---
+        K = len(self.id2label)
+        P = torch.zeros(K, device=device)
+        R = torch.zeros(K, device=device)
+        P[classes_present.long()] = opt_p
+        R[classes_present.long()] = opt_r
+        return P, R
+
+
+    def get_averaged_precision_recall_ultralytics_style(self, optimal_precisions: torch.Tensor, optimal_recalls: torch.Tensor, present_classes: torch.Tensor):
+        """
+        Calculate overall precision and recall by averaging across all classes that were present,
+        following Ultralytics' approach.
+        
+        Args:
+            optimal_precisions: Per-class optimal precision values
+            optimal_recalls: Per-class optimal recall values  
+            present_classes: Classes that were actually present in the evaluation
+        
+        Returns:
+            tuple: (overall_precision, overall_recall)
+        """
+        if len(present_classes) == 0:
+            return 0.0, 0.0
+            
+        # Only average over classes that were actually present
+        present_class_ids = present_classes.long()
+        
+        # Get the precision/recall values for classes that were present
+        present_precisions = optimal_precisions[present_class_ids]
+        present_recalls = optimal_recalls[present_class_ids]
+        
+        # Calculate the mean (this matches Ultralytics' approach)
+        overall_precision = present_precisions.mean().item()
+        overall_recall = present_recalls.mean().item()
+        
+        return overall_precision, overall_recall

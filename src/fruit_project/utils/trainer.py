@@ -444,25 +444,23 @@ class Trainer:
         test_map = map_50_95_metrics.get("map", 0.0)
         test_map50 = map_50_95_metrics.get("map_50", 0.0)
         map_50_metrics = self.map_evaluator.map_50_metric.compute()
-        test_recall = map_50_95_metrics.get("recall", 0.0)
-        test_precision = map_50_95_metrics.get("precision", 0.0)
+        optimal_precisions, optimal_recalls = self.map_evaluator.get_optimal_f1_ultralytics_style(map_50_metrics)
+        present_classes = map_50_metrics.get("classes", torch.tensor([], device=self.device))
+        overall_precision, overall_recall = self.map_evaluator.get_averaged_precision_recall_ultralytics_style(
+            optimal_precisions, optimal_recalls, present_classes
+        )
 
         class_names = test_dl.dataset.labels
-
         test_metrics = {
             "map@50:95": test_map,
             "map@50": test_map50,
             "map@50_per_class": self.map_evaluator.get_per_class(
                 map_50_metrics, metric="map_per_class"
             ),
-            "precision_per_class": self.map_evaluator.get_per_class(
-                map_50_metrics, metric="precision_per_class"
-            ),
-            "recall_per_class": self.map_evaluator.get_per_class(
-                map_50_metrics, metric="recall_per_class"
-            ),
-            "recall": test_recall,
-            "precision": test_precision,
+            "precision_per_class": optimal_precisions,
+            "recall_per_class": optimal_recalls,
+            "precision": overall_precision,
+            "recall": overall_recall,
         }
 
         num_batches = len(test_dl)
