@@ -431,7 +431,12 @@ class Trainer:
                 }
             )
             if calc_cm and cm:
-                preds = self.processor.post_process_object_detection(...)
+                sizes = torch.stack(
+                    [t["size"].clone().detach() for t in batch["labels"]]
+                )
+                preds = self.processor.post_process_object_detection(
+                    out, threshold=0.01, target_sizes=sizes
+                )
                 preds = self.nested_to_cpu(preds)
                 targets_for_cm = self.format_targets_for_cm(batch["labels"])
                 cm.update(preds, targets_for_cm)
