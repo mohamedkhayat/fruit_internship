@@ -415,7 +415,7 @@ def log_epoch_data(
         "test/map@50": test_metrics["map@50"],
         "test/recall": test_metrics["recall"],
         "test/precision": test_metrics["precision"],
-        "Learning rate": float(f"{trainer.scheduler.get_last_lr()[0]:.6f}"),
+        "Learning rate": float(f"{trainer.scheduler.get_last_lr()[-1]:.6f}"),
     }
 
     log_data.update({f"train/{k}": v for k, v in train_loss.items()})
