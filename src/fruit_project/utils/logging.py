@@ -337,7 +337,7 @@ def log_per_class_metric(
     metric_name: str,
     log_data: Dict,
 ) -> None:
-    metric_per_class = metric_per_class.cpu()
+    metric_per_class = metric_per_class.detach().cpu()
     for i, name in enumerate(class_names):
         if i < len(metric_per_class):
             log_data[f"{ds_type}/{metric_name}/{name}"] = metric_per_class[i].item()

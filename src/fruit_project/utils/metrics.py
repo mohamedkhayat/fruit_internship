@@ -7,6 +7,7 @@ from torchvision.ops import box_iou
 from transformers.image_transforms import center_to_corners_format
 from dataclasses import dataclass
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
+from ultralytics.utils.metrics import DetMetrics
 
 
 class ConfusionMatrix:
@@ -163,12 +164,6 @@ class ConfusionMatrix:
         return self.matrix
 
 
-@dataclass
-class ModelOutput:
-    logits: torch.Tensor
-    pred_boxes: torch.Tensor
-
-
 class MAPEvaluator:
     """Mean Average Precision evaluator for RT-DETRv2 - adapted for fruit_project."""
 
@@ -192,6 +187,7 @@ class MAPEvaluator:
             iou_thresholds=[0.5],
             extended_summary=True,
         ).to(device)
+        self.det_metric = DetMetrics(names=id2label)
         self.map_50_metric.warn_on_many_detections = False
         self.device = device
 
@@ -204,8 +200,6 @@ class MAPEvaluator:
             try:
                 if "size" in target:
                     size = target["size"]
-                elif "orig_size" in target:
-                    size = target["orig_size"]
                 else:
                     size = [480, 480]
                     print("⚠️ Using fallback image size [480, 480]")

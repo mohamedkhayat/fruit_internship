@@ -372,6 +372,7 @@ class Trainer:
         self.model.eval()
         self.map_evaluator.map_metric.reset()
         self.map_evaluator.map_50_metric.reset()
+        self.map_evaluator.det_metric.clear_stats()
         epoch_loss = {"loss": 0.0}
         epoch_loss.update({k: 0.0 for k in ["class_loss", "bbox_loss", "giou_loss"]})
 
@@ -436,10 +437,27 @@ class Trainer:
                     out, threshold=0.01, target_sizes=sizes
                 )
                 preds = self.nested_to_cpu(preds)
+                for preds_i, targets_i in zip(
+                    batch_preds_processed, batch_targets_processed
+                ):
+                    dets = torch.cat(
+                        [
+                            preds_i["boxes"],
+                            preds_i["scores"].unsqueeze(1),
+                            preds_i["labels"].unsqueeze(1),
+                        ],
+                        dim=1,
+                    )
+                    labs = torch.cat(
+                        [targets_i["labels"].unsqueeze(1), targets_i["boxes"]], dim=1
+                    )
+                    self.map_evaluator.det_metric.update_stats(dets, labs)
+
                 targets_for_cm = self.format_targets_for_cm(batch["labels"])
                 cm.update(preds, targets_for_cm)
 
         tqdm.write("Computing mAP metrics")
+        """"
         map_50_95_metrics = self.map_evaluator.map_metric.compute()
         test_map = map_50_95_metrics.get("map", 0.0)
         test_map50 = map_50_95_metrics.get("map_50", 0.0)
@@ -455,8 +473,6 @@ class Trainer:
                 optimal_precisions, optimal_recalls, present_classes
             )
         )
-
-        class_names = test_dl.dataset.labels
         test_metrics = {
             "map@50:95": test_map,
             "map@50": test_map50,
@@ -465,6 +481,35 @@ class Trainer:
             ),
             "precision_per_class": optimal_precisions,
             "recall_per_class": optimal_recalls,
+            "precision": overall_precision,
+            "recall": overall_recall,
+        }
+        """
+        det_results = self.map_evaluator.det_metric.process()
+        test_map = det_results["map"]
+        test_map50 = det_results["map50"]
+
+        precision_pc = torch.tensor(det_results["p"], device=self.device)
+        recall_pc = torch.tensor(det_results["r"], device=self.device)
+        map50_pc = torch.tensor(
+            self.map_evaluator.det_metric.box.ap50, device=self.device
+        )
+
+        present = torch.tensor(
+            self.map_evaluator.det_metric.ap_class_index,
+            device=self.device,
+            dtype=torch.long,
+        )
+
+        overall_precision = precision_pc[present].mean().item() if len(present) else 0.0
+        overall_recall = recall_pc[present].mean().item() if len(present) else 0.0
+
+        test_metrics = {
+            "map@50:95": test_map,
+            "map@50": test_map50,
+            "map@50_per_class": map50_pc,
+            "precision_per_class": precision_pc,
+            "recall_per_class": recall_pc,
             "precision": overall_precision,
             "recall": overall_recall,
         }
