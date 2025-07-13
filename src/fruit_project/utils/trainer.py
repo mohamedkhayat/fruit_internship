@@ -626,12 +626,10 @@ class Trainer:
         """
         tqdm.write("loading checkpoint")
         ckpt = torch.load(path, map_location=self.device)
-        try :
-            self.model.load_state_dict(ckpt["model"])
-        except KeyError:
+        if model_only:
             self.model.load_state_dict(ckpt)
-
-        if not model_only:
+        else:
+            self.model.load_state_dict(ckpt["model"])
             self.optimizer.load_state_dict(ckpt["optimizer"])
             self.scheduler.load_state_dict(ckpt["scheduler"])
             self.scaler.load_state_dict(ckpt["scaler"])
