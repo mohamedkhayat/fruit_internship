@@ -18,8 +18,13 @@ num_workers : 4
 download_data : False
 lr_back_factor : 50
 lr_enc_dec_factor : 5
-load_ckpt : False
-checkpoint : False
+
+ckpt:
+  save : False
+  load:
+    model_only : False
+    all : False
+
 wait : False
 info : False
 min_area : 4.0
