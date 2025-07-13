@@ -183,7 +183,7 @@ Here are some of the key configuration options:
 | `freeze_encoder` | Whether to freeze the transformer encoder. | `False` |
 | `mosaic.use` | Whether to use Mosaic augmentation. | `True` |
 | `mosaic.prob` | The probability of applying Mosaic augmentation. | `0.8` |
-| `mosaic.disable_epoch` | The epoch at which to disable Mosaic augmentation. | `10` |
+| `mosaic.disable_epoch` | Number of epochs remaining at which to disable Mosaic augmentation. | `10` |
 
 ---
 
