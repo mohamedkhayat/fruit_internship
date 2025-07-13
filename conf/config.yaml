@@ -22,10 +22,10 @@ load_ckpt : False
 checkpoint : False
 wait : False
 info : False
-min_area : 25
+min_area : 4.0
 min_viz : 0.1
-min_width : 1
-min_height : 1
+min_width : 2.0
+min_height : 2.0
 aug : hard
 do_sample : True
 freeze_backbone : True
