@@ -288,12 +288,12 @@ class MAPEvaluator:
 
     def get_optimal_f1_ultralytics_style(self, metrics_dict):
         prec = metrics_dict["precision"]  # T×R×K×A×M
-        classes_present = metrics_dict["classes"].to(self.device)
+        classes_present = metrics_dict["classes"].to(self.device).long()
 
         # --- slice the tensor ---
         iou_idx = self.map_50_metric.iou_thresholds.index(0.5)
-        prec_curves = prec[iou_idx, :, :, 0, -1]  # R×K
-        rec_vec = torch.tensor(self.map_50_metric.rec_thresholds, device=self.device)
+        prec_curves = prec[iou_idx, :, :, 0, -1].to(self.device)  # R×K
+        rec_vec = torch.tensor(self.map_50_metric.rec_thresholds, dtype=prec_curves.dtype, device=self.device)
         # --- compute F1 and pick best threshold per class ---
         f1 = (
             2
@@ -307,8 +307,8 @@ class MAPEvaluator:
 
         # --- place into full-length tensors, zero for missing classes ---
         K = len(self.id2label)
-        P = torch.zeros(K, device=self.device)
-        R = torch.zeros(K, device=self.device)
+        P = torch.zeros(K, dtype=opt_p.dtype, device=self.device)
+        R = torch.zeros(K, dtype=opt_p.dtype, device=self.device)
         P[classes_present.long()] = opt_p
         R[classes_present.long()] = opt_r
         return P, R
