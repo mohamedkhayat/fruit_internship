@@ -4,15 +4,11 @@
 import functools
 from tqdm import tqdm
 from fruit_project.utils.datasets.alb_mosaic_dataset import (
-    AlbumentationsMosaicDataset,
     create_albumentations_mosaic_dataset,
 )
 from fruit_project.utils.datasets.det_dataset import DET_DS
 from torch.utils.data import DataLoader, WeightedRandomSampler
 from omegaconf import DictConfig
-from fruit_project.utils.datasets.mosaic_dataset import (
-    UltralyticsStyleMosaicDataset,
-)
 from fruit_project.utils.general import seed_worker
 import os
 from collections import Counter
@@ -189,7 +185,7 @@ def make_dataloaders(
 
     for ds in [train_ds_base, test_ds, val_ds]:
         ds.processor = processor
-        
+
     train_ds_base, test_ds, val_ds = set_transforms(
         train_ds_base, test_ds, val_ds, transforms, cfg
     )
@@ -204,7 +200,7 @@ def make_dataloaders(
             total_epochs=cfg.epochs,
         )
         """
-        train_ds= create_albumentations_mosaic_dataset(
+        train_ds = create_albumentations_mosaic_dataset(
             train_ds_base,
             cfg.model.input_size,
             cfg.mosaic.prob,
@@ -213,7 +209,7 @@ def make_dataloaders(
             transforms["train"],
             transforms["train_easy"],
             cfg.min_viz,
-            cfg.min_area
+            cfg.min_area,
         )
     else:
         train_ds = train_ds_base
@@ -257,7 +253,6 @@ def make_dataloaders(
         collate_fn=collate,
     )
 
-    
     test_sample = next(iter(test_dl))
     return train_dl, test_dl, val_dl, test_sample
 
