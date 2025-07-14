@@ -50,8 +50,9 @@ class AlbumentationsMosaicDataset(Dataset):
         self.mosaic_transform = A.Mosaic(
             grid_yx=(2, 2),
             target_size=(self.input_size, self.input_size),
-            cell_shape=(target_size, target_size),
+            cell_shape=(target_size // 2, target_size // 2),
             fill=114,
+            center_range=(0.4, 0.6),
             metadata_key="mosaic_metadata",
             p=1.0,
         )
