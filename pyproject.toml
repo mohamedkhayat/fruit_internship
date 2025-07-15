@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "fruit-internship"
 version = "0.0.1"
 dependencies = [
-    "albumentations==2.0.8",
+    "albumentationsx",
     "hydra-core==1.3.2",
     "kaggle==1.7.4.5",
     "matplotlib==3.9.4",
