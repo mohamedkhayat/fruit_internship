@@ -533,7 +533,7 @@ class Trainer:
                     self,
                 )
 
-            if epoch > self.cfg.warmup_epochs + 5 and self.early_stopping(
+            if self.early_stopping and epoch > self.cfg.warmup_epochs(
                 test_metrics["map@50:95"], self.model
             ):
                 tqdm.write(f"Early stopping triggered at epoch {epoch + 1}.")
