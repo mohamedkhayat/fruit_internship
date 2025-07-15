@@ -105,123 +105,41 @@ class Trainer:
 
     def get_optimizer(self) -> AdamW:
         """
-        Creates an AdamW optimizer with different learning rates for backbone and other parameters.
+        Creates an AdamW optimizer with a differential learning rate for the backbone
+        and the rest of the model (head), following standard fine-tuning practices.
 
         Returns:
-            AdamW: The optimizer.
+            AdamW: The configured optimizer.
         """
-        # Backbone (pre-trained - lowest LR)
+        head_params = [p for p in self.model.parameters() if p.requires_grad]
+
         backbone_params = [
             p
             for n, p in self.model.named_parameters()
-            if "backbone" in n and p.requires_grad
-        ]
-
-        # Encoder/Decoder (pre-trained but task-specific - medium LR)
-        encoder_decoder_params = [
-            p
-            for n, p in self.model.named_parameters()
-            if any(
-                head in n
-                for head in [
-                    "encoder.encoder",
-                    "decoder.layers",
-                    "input_proj",
-                    "enc_output",
-                ]
-            )  # Target the main transformer layers
-            and p.requires_grad
-        ]
-
-        # Prediction Heads (highest LR) - Consolidating all prediction layers
-        prediction_head_params = [
-            p
-            for n, p in self.model.named_parameters()
-            if any(
-                head in n
-                for head in [
-                    "class_embed",
-                    "enc_score_head",
-                    "denoising_class_embed",
-                    "bbox_embed",
-                    "enc_bbox_head",
-                ]
-            )
-            and p.requires_grad
+            if n.startswith("model.backbone") and p.requires_grad
         ]
 
         backbone_param_ids = {id(p) for p in backbone_params}
-        encoder_decoder_param_ids = {id(p) for p in encoder_decoder_params}
-        prediction_head_param_ids = {id(p) for p in prediction_head_params}
 
-        # Remove overlaps
-        encoder_decoder_params = [
-            p
-            for p in encoder_decoder_params
-            if id(p) not in prediction_head_param_ids
-            and id(p) not in backbone_param_ids
-        ]
-        prediction_head_params = [
-            p
-            for p in prediction_head_params
-            if id(p) not in backbone_param_ids
-            and id(p) not in encoder_decoder_param_ids
-        ]
-        backbone_params = [
-            p
-            for p in backbone_params
-            if id(p) not in encoder_decoder_param_ids
-            and id(p) not in prediction_head_param_ids
+        head_params_final = [p for p in head_params if id(p) not in backbone_param_ids]
+
+        param_dicts = [
+            {
+                "params": head_params_final,
+                "lr": self.cfg.lr,
+            },
+            {
+                "params": backbone_params,
+                "lr": self.cfg.lr / self.cfg.lr_back_factor,
+            },
         ]
 
-        # Everything else (Neck, FPN, PAN : medium LR)
-        all_used_ids = (
-            backbone_param_ids | encoder_decoder_param_ids | prediction_head_param_ids
+        print(
+            f"Backbone params: {sum(p.numel() for p in backbone_params)} parameters at LR {self.cfg.lr_back_factor}"
         )
-        other_params = [
-            p
-            for p in self.model.parameters()
-            if id(p) not in all_used_ids and p.requires_grad
-        ]
-
-        param_dicts = []
-
-        # Medium LR for other parameters
-        if other_params:
-            param_dicts.append(
-                {"params": other_params, "lr": self.cfg.lr / self.cfg.lr_enc_dec_factor}
-            )
-            print(
-                f"Neck and other params: {sum(p.numel() for p in other_params)} parameters at LR {self.cfg.lr}"
-            )
-
-        # Medium LR for encoder/decoder
-        if encoder_decoder_params:
-            param_dicts.append(
-                {
-                    "params": encoder_decoder_params,
-                    "lr": self.cfg.lr / self.cfg.lr_enc_dec_factor,
-                }
-            )
-            print(
-                f"Encoder/Decoder params: {sum(p.numel() for p in encoder_decoder_params)} parameters at LR {self.cfg.lr / self.cfg.lr_enc_dec_factor}"
-            )
-
-        # Lowest LR for backbone
-        if backbone_params:
-            param_dicts.append(
-                {"params": backbone_params, "lr": self.cfg.lr / self.cfg.lr_back_factor}
-            )
-            print(
-                f"Backbone params: {sum(p.numel() for p in backbone_params)} parameters at LR {self.cfg.lr / self.cfg.lr_back_factor}"
-            )
-
-        # Highest LR for Prediction head (base LR)
-        if prediction_head_params:
-            param_dicts.append({"params": prediction_head_params, "lr": self.cfg.lr})
-            print(
-                f"Prediction head params: {sum(p.numel() for p in prediction_head_params)} parameters at LR {self.cfg.lr}"
-            )
+        print(
+            f"Head (Encoder, Decoder, Neck, etc.) params: {sum(p.numel() for p in head_params_final)} parameters at LR {self.cfg.lr}"
+        )
 
         optimizer = AdamW(param_dicts, weight_decay=self.cfg.weight_decay)
         return optimizer
