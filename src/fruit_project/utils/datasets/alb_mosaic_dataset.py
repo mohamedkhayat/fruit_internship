@@ -233,6 +233,7 @@ class AlbumentationsMosaicDataset(Dataset):
                     annotations=target,
                     return_tensors="pt",
                     do_pad=True,
+                    pad_size=114,
                 )
                 result = {k: v[0] for k, v in result.items()}
                 return result
