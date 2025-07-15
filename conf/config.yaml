@@ -34,7 +34,6 @@ min_height : 2.0
 aug : hard
 do_sample : True
 freeze_backbone : True
-freeze_encoder : False
 partially_freeze_backbone : False
 upload : False
 mosaic:
