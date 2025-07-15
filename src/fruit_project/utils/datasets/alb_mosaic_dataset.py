@@ -3,6 +3,7 @@
 
 from typing import Tuple, Dict, Any, List
 import numpy as np
+import torch
 from torch.utils.data import Dataset
 import albumentations as A
 from albumentations import Compose
@@ -15,6 +16,8 @@ class AlbumentationsMosaicDataset(Dataset):
     Dataset wrapper that applies Albumentations' native Mosaic augmentation,
     following the correct API based on official documentation.
     """
+
+    has_warned_mosaic = False
 
     def __init__(
         self,
@@ -37,8 +40,6 @@ class AlbumentationsMosaicDataset(Dataset):
         self.total_epochs = total_epochs
         self.min_visibility = min_visibility
         self.min_area = min_area
-        self.has_warned_mosaic = False
-        self.has_warned_transforms = False
 
         # Copy dataset attributes
         self.processor = dataset.processor
@@ -95,12 +96,13 @@ class AlbumentationsMosaicDataset(Dataset):
 
     def should_apply_mosaic(self) -> bool:
         """Determine if mosaic should be applied based on epoch and probability."""
-        if (
-            self.current_epoch >= (self.total_epochs - self.disable_mosaic_epochs)
-            and not self.has_warned_mosaic
-        ):
-            self.has_warned_mosaic = True
-            tqdm.write("switched off mosaic")
+        if self.current_epoch >= (self.total_epochs - self.disable_mosaic_epochs):
+            if not AlbumentationsMosaicDataset.has_warned_mosaic and (
+                (torch.utils.data.get_worker_info() is None)
+                or (torch.utils.data.get_worker_info().id == 0)
+            ):
+                AlbumentationsMosaicDataset.has_warned_mosaic = True
+                tqdm.write("switched off mosaic")
             return False
         return np.random.rand() < self.mosaic_prob
 
@@ -203,9 +205,7 @@ class AlbumentationsMosaicDataset(Dataset):
 
         if is_final_epochs or use_easy_transforms:
             transform_pipeline = self.easy_compose
-            if not self.has_warned_transforms:
-                tqdm.write("Switched to easy transforms")
-                self.has_warned_transforms = True
+
         else:
             fallback_hard_pipeline = [A.Resize(self.target_size, self.target_size)]
             if self.hard_transforms:
