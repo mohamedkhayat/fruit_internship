@@ -78,7 +78,7 @@ def get_RTDETRv2(
         num_labels=n_classes,
         id2label=id2label,
         label2id=label2id,
-        decoder_method="discrete",
+        decoder_method=cfg.decoder_method,
     )
 
     model = AutoModelForObjectDetection.from_pretrained(

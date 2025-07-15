@@ -40,3 +40,4 @@ mosaic:
   use : True
   prob : 0.8
   disable_epoch : 10
+decoder_method : default
