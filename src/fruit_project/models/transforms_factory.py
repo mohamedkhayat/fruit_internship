@@ -17,7 +17,17 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
     Returns:
         dict: A dictionary with keys "train" and "test"
     """
-
+    bbox_params = (
+        A.BboxParams(
+            format="coco",
+            label_fields=["labels"],
+            clip=True,
+            min_visibility=cfg.min_viz,
+            min_area=cfg.min_area,
+            min_width=cfg.min_width,
+            min_height=cfg.min_height,
+        ),
+    )
     hard_train_transforms = A.Compose(
         [
             A.HorizontalFlip(p=0.5),
@@ -62,15 +72,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
             ),
             A.CLAHE(clip_limit=2.0, p=0.3),
         ],
-        bbox_params=A.BboxParams(
-            format="coco",
-            label_fields=["labels"],
-            clip=True,
-            min_visibility=cfg.min_viz,
-            min_area=cfg.min_area,
-            min_width=cfg.min_width,
-            min_height=cfg.min_height,
-        ),
+        bbox_params=bbox_params,
     )
     safe_train_transforms = A.Compose(
         [
@@ -87,27 +89,12 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
             A.RandomBrightnessContrast(ensure_safe_range=True, p=0.3),
             A.CLAHE(clip_limit=1.5, p=0.2),
         ],
-        bbox_params=A.BboxParams(
-            format="coco",
-            label_fields=["labels"],
-            clip=True,
-            min_visibility=cfg.min_viz,
-            min_area=cfg.min_area,
-            min_width=cfg.min_width,
-            min_height=cfg.min_height,
-        ),
+        bbox_params=bbox_params,
     )
 
     transforms = {
         "train": hard_train_transforms if cfg.aug == "hard" else safe_train_transforms,
         "train_easy": safe_train_transforms,
-        "test": A.Compose(
-            [A.NoOp()],
-            bbox_params=A.BboxParams(
-                format="coco",
-                label_fields=["labels"],
-                clip=True,
-            ),
-        ),
+        "test": A.Compose([A.NoOp()], bbox_params=bbox_params),
     }
     return transforms
