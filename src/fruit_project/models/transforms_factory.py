@@ -21,7 +21,17 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
     hard_train_transforms = A.Compose(
         [
             A.HorizontalFlip(p=0.5),
-            A.SafeRotate(limit=0.1, p=0.3),
+            A.Affine(
+                scale=(0.8, 1.2),
+                translate_percent={"x": (-0.2, 0.2), "y": (-0.1, 0.1)},
+                rotate=(-30, 30),
+                shear={"x": (-10, 10), "y": (-5, 5)},
+                fit_output=False,
+                keep_ratio=True,
+                balanced_scale=True,
+                fill=114,
+                p=0.6,
+            ),
             A.OneOf(
                 [
                     A.RGBShift(10, 10, 10, p=0.2),
