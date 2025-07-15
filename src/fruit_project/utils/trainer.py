@@ -88,19 +88,26 @@ class Trainer:
         Returns:
             SequentialLR: The learning rate scheduler.
         """
-        warmup_scheduler = LinearLR(
-            self.optimizer, start_factor=0.1, total_iters=self.cfg.warmup_epochs
-        )
+        if self.cfg.phase == 1:
+            warmup_scheduler = LinearLR(
+                self.optimizer, start_factor=0.1, total_iters=self.cfg.warmup_epochs
+            )
 
-        main_scheduler = CosineAnnealingLR(
-            self.optimizer, T_max=self.cfg.epochs - self.cfg.warmup_epochs, eta_min=1e-7
-        )
+            main_scheduler = CosineAnnealingLR(
+                self.optimizer,
+                T_max=self.cfg.epochs - self.cfg.warmup_epochs,
+                eta_min=1e-7,
+            )
 
-        scheduler = SequentialLR(
-            self.optimizer,
-            schedulers=[warmup_scheduler, main_scheduler],
-            milestones=[self.cfg.warmup_epochs],
-        )
+            scheduler = SequentialLR(
+                self.optimizer,
+                schedulers=[warmup_scheduler, main_scheduler],
+                milestones=[self.cfg.warmup_epochs],
+            )
+        else:
+            scheduler = CosineAnnealingLR(
+                self.optimizer, T_max=self.cfg.epochs, eta_min=0
+            )
         return scheduler
 
     def get_optimizer(self) -> AdamW:
