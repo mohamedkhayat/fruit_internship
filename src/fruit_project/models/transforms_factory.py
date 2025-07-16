@@ -54,7 +54,12 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
             ),
             A.OneOf(
                 [
-                    A.RandomBrightnessContrast(brightness_limit=0.1, contrast_limit = 0.1,ensure_safe_range=True, p=0.5),
+                    A.RandomBrightnessContrast(
+                        brightness_limit=0.1,
+                        contrast_limit=0.1,
+                        ensure_safe_range=True,
+                        p=0.5,
+                    ),
                     A.RandomToneCurve(p=0.7),
                 ],
                 p=0.3,
@@ -66,26 +71,17 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
     safe_train_transforms = A.Compose(
         [
             A.HorizontalFlip(p=0.5),
-            A.Affine(
-                scale=(0.5, 1.5),
-                translate_percent={"x": (-0.1, 0.1), "y": (-0.1, 0.1)},
-                rotate=(-10, 10),
-                shear={"x": (-5, 5), "y": (-3, 3)},
-                fit_output=False,
-                keep_ratio=False,
-                balanced_scale=True,
-                fill=114,
-                p=0.4,
-            ),
             A.OneOf(
                 [
                     A.Blur(blur_limit=5, p=0.5),
                     A.MotionBlur(blur_limit=5, p=0.5),
                     A.Defocus(radius=(1, 5), alias_blur=(0.1, 0.25), p=0.1),
                 ],
-                p=0.2,
+                p=0.1,
             ),
-            A.RandomBrightnessContrast(ensure_safe_range=True, p=0.3),
+            A.RandomBrightnessContrast(
+                brightness_limit=0.1, contrast_limit=0.1, ensure_safe_range=True, p=0.5
+            ),
             A.CLAHE(clip_limit=1.5, p=0.2),
         ],
         bbox_params=bbox_params,
@@ -101,12 +97,12 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
 
 def get_bbox_params(cfg):
     return A.BboxParams(
-            format="coco",
-            label_fields=["labels"],
-            clip=False,
-            filter_invalid_bboxes = True,
-            min_visibility=cfg.min_viz,
-            min_area=cfg.min_area,
-            min_width=cfg.min_width,
-            min_height=cfg.min_height,
+        format="coco",
+        label_fields=["labels"],
+        clip=False,
+        filter_invalid_bboxes=True,
+        min_visibility=cfg.min_viz,
+        min_area=cfg.min_area,
+        min_width=cfg.min_width,
+        min_height=cfg.min_height,
     )
