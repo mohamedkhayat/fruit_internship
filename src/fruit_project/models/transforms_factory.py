@@ -24,7 +24,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
             A.Affine(
                 scale=(0.9, 1.1),
                 translate_percent={"x": (-0.1, 0.1), "y": (-0.1, 0.1)},
-                rotate=(-15, 15),
+                rotate=(-10, 10),
                 shear={"x": (-5, 5), "y": (-3, 3)},
                 fit_output=False,
                 keep_ratio=False,
@@ -66,7 +66,17 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
     safe_train_transforms = A.Compose(
         [
             A.HorizontalFlip(p=0.5),
-            A.SafeRotate(limit=0.1, p=0.2),
+            A.Affine(
+                scale=(0.5, 1.5),
+                translate_percent={"x": (-0.1, 0.1), "y": (-0.1, 0.1)},
+                rotate=(-10, 10),
+                shear={"x": (-5, 5), "y": (-3, 3)},
+                fit_output=False,
+                keep_ratio=False,
+                balanced_scale=True,
+                fill=114,
+                p=0.4,
+            ),
             A.OneOf(
                 [
                     A.Blur(blur_limit=5, p=0.5),
