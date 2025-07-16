@@ -90,7 +90,7 @@ class Trainer:
         """
         if self.cfg.phase == 1:
             warmup_scheduler = LinearLR(
-                self.optimizer, start_factor=cfg.lin_start_factor, total_iters=self.cfg.warmup_epochs
+                self.optimizer, start_factor=self.cfg.lin_start_factor, total_iters=self.cfg.warmup_epochs
             )
 
             main_scheduler = CosineAnnealingLR(
