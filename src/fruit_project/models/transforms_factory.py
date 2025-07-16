@@ -22,22 +22,22 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
         [
             A.HorizontalFlip(p=0.5),
             A.Affine(
-                scale=(0.7, 1.3),
-                translate_percent={"x": (-0.1, 0.1), "y": (-0.1, 0.1)},
-                rotate=(-10, 10),
-                shear={"x": (-5, 5), "y": (-3, 3)},
-                fit_output=False,
-                keep_ratio=False,
+                scale=(0.9, 1.1),
+                translate_percent={"x": (-0.05, 0.05), "y": (-0.05, 0.05)},
+                rotate=(-5, 5),
+                shear={"x": (-3, 3), "y": (-3, 3)},
+                fit_output=True,
+                keep_ratio=True,
                 balanced_scale=True,
                 fill=114,
-                p=0.6,
+                p=0.3,
             ),
             A.OneOf(
                 [
                     A.RGBShift(10, 10, 10, p=0.2),
                     A.HueSaturationValue(
-                        hue_shift_limit=10,
-                        sat_shift_limit=15,
+                        hue_shift_limit=5,
+                        sat_shift_limit=10,
                         val_shift_limit=10,
                         p=0.6,
                     ),
@@ -54,10 +54,10 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
             ),
             A.OneOf(
                 [
-                    A.RandomBrightnessContrast(ensure_safe_range=True, p=0.8),
+                    A.RandomBrightnessContrast(brightness_limit=0.1, contrast_limit = 0.1,ensure_safe_range=True, p=0.5),
                     A.RandomToneCurve(p=0.7),
                 ],
-                p=0.5,
+                p=0.3,
             ),
             A.CLAHE(clip_limit=2.0, p=0.3),
         ],
