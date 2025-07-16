@@ -8,6 +8,8 @@ from torch.utils.data import Dataset
 import albumentations as A
 from albumentations import Compose
 from tqdm import tqdm
+
+from fruit_project.models.transforms_factory import get_bbox_params
 from .det_dataset import DET_DS, format_for_hf_processor
 
 
@@ -22,24 +24,17 @@ class AlbumentationsMosaicDataset(Dataset):
     def __init__(
         self,
         dataset: DET_DS,
-        target_size: int = 640,
-        mosaic_prob: float = 0.8,
-        disable_mosaic_epochs: int = 10,
         current_epoch: int = 0,
-        total_epochs: int = 100,
         hard_transforms: Compose = None,
         easy_transforms: Compose = None,
-        min_visibility: float = 0.1,
-        min_area: float = 0.02,
+        cfg = None
     ):
         self.dataset = dataset
-        self.target_size = target_size
-        self.mosaic_prob = mosaic_prob
-        self.disable_mosaic_epochs = disable_mosaic_epochs
+        self.target_size = cfg.model.input_size
+        self.mosaic_prob = cfg.mosaic.prob
+        self.disable_mosaic_epochs = cfg.mosaic.disable_epoch
         self.current_epoch = current_epoch
-        self.total_epochs = total_epochs
-        self.min_visibility = min_visibility
-        self.min_area = min_area
+        self.total_epochs = cfg.epochs
 
         # Copy dataset attributes
         self.processor = dataset.processor
@@ -54,18 +49,14 @@ class AlbumentationsMosaicDataset(Dataset):
         self.mosaic_transform = A.Mosaic(
             grid_yx=(2, 2),
             target_size=(self.input_size, self.input_size),
-            cell_shape=(target_size // 2, target_size // 2),
+            cell_shape=(cfg.model.input_size // 2, cfg.model.input_size // 2),
             fill=114,
             center_range=(0.4, 0.6),
             metadata_key="mosaic_metadata",
             p=1.0,
         )
-        self.bbox_params = A.BboxParams(
-            format="coco",
-            label_fields=["labels"],
-            min_visibility=min_visibility,
-            min_area=min_area,
-        )
+        
+        self.bbox_params = get_bbox_params(cfg)
         self.hard_transforms = hard_transforms
         self.easy_transforms = easy_transforms
 
@@ -256,24 +247,14 @@ class AlbumentationsMosaicDataset(Dataset):
 
 def create_albumentations_mosaic_dataset(
     dataset: DET_DS,
-    target_size: int = 640,
-    mosaic_prob: float = 0.8,
-    disable_mosaic_epochs: int = 10,
-    total_epochs: int = 100,
     hard_transforms: Compose = None,
     easy_transforms: Compose = None,
-    min_visibility: float = 0.1,
-    min_area: float = 0.02,
+    cfg = None
 ) -> AlbumentationsMosaicDataset:
     return AlbumentationsMosaicDataset(
         dataset=dataset,
-        target_size=target_size,
-        mosaic_prob=mosaic_prob,
-        disable_mosaic_epochs=disable_mosaic_epochs,
         current_epoch=0,
-        total_epochs=total_epochs,
         hard_transforms=hard_transforms,
         easy_transforms=easy_transforms,
-        min_visibility=min_visibility,
-        min_area=min_area,
+        cfg=cfg
     )
