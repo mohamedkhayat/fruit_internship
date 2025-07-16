@@ -96,7 +96,7 @@ class Trainer:
             main_scheduler = CosineAnnealingLR(
                 self.optimizer,
                 T_max=self.cfg.epochs - self.cfg.warmup_epochs,
-                eta_min=self.cfg.eta_min,
+                eta_min=self.cfg.lr / self.cfg.eta_min_factor,
             )
 
             scheduler = SequentialLR(
