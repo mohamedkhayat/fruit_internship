@@ -27,7 +27,7 @@ class AlbumentationsMosaicDataset(Dataset):
         current_epoch: int = 0,
         hard_transforms: Compose = None,
         easy_transforms: Compose = None,
-        cfg = None
+        cfg=None,
     ):
         self.dataset = dataset
         self.target_size = cfg.model.input_size
@@ -54,7 +54,7 @@ class AlbumentationsMosaicDataset(Dataset):
             metadata_key="mosaic_metadata",
             p=1.0,
         )
-        
+
         self.bbox_params = get_bbox_params(cfg)
         self.hard_transforms = hard_transforms
         self.easy_transforms = easy_transforms
@@ -246,12 +246,12 @@ def create_albumentations_mosaic_dataset(
     dataset: DET_DS,
     hard_transforms: Compose = None,
     easy_transforms: Compose = None,
-    cfg = None
+    cfg=None,
 ) -> AlbumentationsMosaicDataset:
     return AlbumentationsMosaicDataset(
         dataset=dataset,
         current_epoch=0,
         hard_transforms=hard_transforms,
         easy_transforms=easy_transforms,
-        cfg=cfg
+        cfg=cfg,
     )

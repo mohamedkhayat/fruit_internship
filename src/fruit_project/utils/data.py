@@ -193,10 +193,7 @@ def make_dataloaders(
     if cfg.mosaic.use:
         print("Applying Mosaic augmentation to the training dataset.")
         train_ds = create_albumentations_mosaic_dataset(
-            train_ds_base,
-            transforms["train"],
-            transforms["train_easy"],
-            cfg
+            train_ds_base, transforms["train"], transforms["train_easy"], cfg
         )
     else:
         train_ds = train_ds_base
