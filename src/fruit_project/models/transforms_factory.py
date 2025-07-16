@@ -17,17 +17,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
     Returns:
         dict: A dictionary with keys "train" and "test"
     """
-    bbox_params = (
-        A.BboxParams(
-            format="coco",
-            label_fields=["labels"],
-            clip=True,
-            min_visibility=cfg.min_viz,
-            min_area=cfg.min_area,
-            min_width=cfg.min_width,
-            min_height=cfg.min_height,
-        ),
-    )
+    bbox_params = get_bbox_params(cfg)
     hard_train_transforms = A.Compose(
         [
             A.HorizontalFlip(p=0.5),
@@ -54,7 +44,6 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                 ],
                 p=0.2,
             ),
-            A.Perspective(p=0.1),
             A.OneOf(
                 [
                     A.Blur(blur_limit=7, p=0.5),
@@ -98,3 +87,16 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
         "test": A.Compose([A.NoOp()], bbox_params=bbox_params),
     }
     return transforms
+
+
+def get_bbox_params(cfg):
+    return A.BboxParams(
+            format="coco",
+            label_fields=["labels"],
+            clip=False,
+            filter_invalid_bboxes = True,
+            min_visibility=cfg.min_viz,
+            min_area=cfg.min_area,
+            min_width=cfg.min_width,
+            min_height=cfg.min_height,
+    )
