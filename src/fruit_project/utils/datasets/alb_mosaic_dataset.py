@@ -50,7 +50,7 @@ class AlbumentationsMosaicDataset(Dataset):
             target_size=(self.target_size, self.target_size),
             cell_shape=(self.target_size // 2, self.target_size // 2),
             fill=114,
-            center_range=(0.4, 0.6),
+            center_range=(0.3, 0.7),
             metadata_key="mosaic_metadata",
             p=1.0,
         )
@@ -105,8 +105,6 @@ class AlbumentationsMosaicDataset(Dataset):
         y = max(0, min(y, img_height - 1))
         w = max(1, min(w, img_width - x))
         h = max(1, min(h, img_height - y))
-        if w * h < 4:
-            return None
         return [float(x), float(y), float(w), float(h)]
 
     def _prepare_mosaic_metadata(self, primary_idx: int) -> List[Dict[str, Any]]:

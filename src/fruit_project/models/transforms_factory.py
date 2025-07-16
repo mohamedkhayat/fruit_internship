@@ -22,7 +22,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
         [
             A.HorizontalFlip(p=0.5),
             A.Affine(
-                scale=(0.9, 1.1),
+                scale=(0.7, 1.3),
                 translate_percent={"x": (-0.1, 0.1), "y": (-0.1, 0.1)},
                 rotate=(-10, 10),
                 shear={"x": (-5, 5), "y": (-3, 3)},
