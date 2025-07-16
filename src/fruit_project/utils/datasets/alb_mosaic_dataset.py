@@ -35,7 +35,6 @@ class AlbumentationsMosaicDataset(Dataset):
         self.disable_mosaic_epochs = cfg.mosaic.disable_epoch
         self.current_epoch = current_epoch
         self.total_epochs = cfg.epochs
-
         # Copy dataset attributes
         self.processor = dataset.processor
         self.id2lbl = dataset.id2lbl
@@ -48,8 +47,8 @@ class AlbumentationsMosaicDataset(Dataset):
 
         self.mosaic_transform = A.Mosaic(
             grid_yx=(2, 2),
-            target_size=(self.input_size, self.input_size),
-            cell_shape=(cfg.model.input_size // 2, cfg.model.input_size // 2),
+            target_size=(self.target_size, self.target_size),
+            cell_shape=(self.target_size // 2, self.target_size // 2),
             fill=114,
             center_range=(0.4, 0.6),
             metadata_key="mosaic_metadata",
