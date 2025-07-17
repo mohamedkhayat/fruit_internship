@@ -64,6 +64,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                 ],
                 p=0.3,
             ),
+            A.Perspective(scale=(0.025, 0.095), fill=114, p=0.1),
             A.CLAHE(clip_limit=2.0, p=0.3),
         ],
         bbox_params=bbox_params,
@@ -80,9 +81,9 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                 p=0.1,
             ),
             A.RandomBrightnessContrast(
-                brightness_limit=0.1, contrast_limit=0.1, ensure_safe_range=True, p=0.5
+                brightness_limit=0.1, contrast_limit=0.1, ensure_safe_range=True, p=0.2
             ),
-            A.CLAHE(clip_limit=1.5, p=0.2),
+            A.CLAHE(clip_limit=1.5, p=0.1),
         ],
         bbox_params=bbox_params,
     )
