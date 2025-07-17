@@ -459,8 +459,6 @@ class Trainer:
 
             test_loss, test_metrics, _ = self.eval(self.test_dl, epoch)
 
-            # remove this right ? self.scheduler.step()
-
             epoch_pbar.update(1)
 
             best_test_map = max(test_metrics["map@50"], best_test_map)
