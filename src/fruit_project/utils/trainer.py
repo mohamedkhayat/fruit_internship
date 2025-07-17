@@ -436,7 +436,7 @@ class Trainer:
         best_test_map = 0
 
         for epoch in range(self.start_epoch, self.cfg.epochs):
-            epoch_pbar.set_description(f"Epoch {epoch + 1}/{self.cfg.epochs}")
+            epoch_pbar.set_description(f"Epoch {epoch}/{self.cfg.epochs}")
             if self.run and self.cfg.ckpt.save:
                 ckpt_path = self._save_checkpoint(epoch)
                 if self.cfg.log:
@@ -469,7 +469,7 @@ class Trainer:
                 )
 
             if self.early_stopping(test_metrics["map@50:95"], self.model):
-                tqdm.write(f"Early stopping triggered at epoch {epoch + 1}.")
+                tqdm.write(f"Early stopping triggered at epoch {epoch}.")
                 break
 
         tqdm.write("Training finished.")
