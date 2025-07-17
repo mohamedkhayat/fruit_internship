@@ -117,8 +117,8 @@ class Trainer:
                 self.optimizer,
                 schedulers=[warmup_scheduler, main_scheduler, finetune_scheduler],
                 milestones=[
-                    self.cfg.warmup_epochs,
-                    self.cfg.epochs - self.cfg.mosaic.disable_epoch,
+                    self.cfg.warmup_epochs * train_steps,
+                    (self.cfg.epochs - self.cfg.mosaic.disable_epoch) * train_steps,
                 ],
             )
         else:
