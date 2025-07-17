@@ -18,6 +18,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
         dict: A dictionary with keys "train" and "test"
     """
     bbox_params = get_bbox_params(cfg)
+    box_labels = [k for k in id2label.keys()]
     hard_train_transforms = A.Compose(
         [
             A.HorizontalFlip(p=0.5),
@@ -41,6 +42,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                         hole_height_range=(0.05, 0.25),
                         hole_width_range=(0.05, 0.25),
                         fill_value=0,  # Black shadows
+                        bbox_labels=box_labels,
                         p=1.0,
                     ),
                     # Neutral background (gray holes)
@@ -49,6 +51,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                         hole_height_range=(0.05, 0.25),
                         hole_width_range=(0.05, 0.25),
                         fill_value=114,  # COCO gray
+                        bbox_labels=box_labels,
                         p=1.0,
                     ),
                     # Overexposure simulation (white holes)
@@ -60,6 +63,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                         ),
                         hole_width_range=(0.04, 0.2),
                         fill_value=255,  # Bright white
+                        bbox_labels=box_labels,
                         p=1.0,
                     ),
                 ],
@@ -116,7 +120,8 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                 num_holes_range=(1, 4),
                 hole_height_range=(0.02, 0.15),
                 hole_width_range=(0.02, 0.15),
-                fill_value=0,
+                fill_value=114,
+                bbox_labels=box_labels,
                 p=0.2,
             ),
             A.RandomBrightnessContrast(
