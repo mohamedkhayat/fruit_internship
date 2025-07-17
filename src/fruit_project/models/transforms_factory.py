@@ -71,11 +71,11 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
             ),
             A.OneOf(
                 [
-                    A.RGBShift(25, 25, 25, p=0.2),
+                    A.RGBShift(20, 20, 20, p=0.2),
                     A.HueSaturationValue(
-                        hue_shift_limit=20,
-                        sat_shift_limit=30,
-                        val_shift_limit=20,
+                        hue_shift_limit=10,
+                        sat_shift_limit=20,
+                        val_shift_limit=10,
                         p=0.6,
                     ),
                 ],
