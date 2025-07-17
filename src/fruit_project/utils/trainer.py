@@ -88,8 +88,10 @@ class Trainer:
         Returns:
             SequentialLR: The learning rate scheduler.
         """
+        train_steps = len(self.train_dl)
+
         if self.cfg.phase == 1:
-            total_warmup_steps = self.cfg.warmup_epochs * len(self.train_dl)
+            total_warmup_steps = self.cfg.warmup_epochs * train_steps
             warmup_scheduler = LinearLR(
                 self.optimizer,
                 start_factor=self.cfg.lin_start_factor,
@@ -101,12 +103,14 @@ class Trainer:
             )
             main_scheduler = CosineAnnealingLR(
                 self.optimizer,
-                T_max=main_epochs,
+                T_max=main_epochs * train_steps,
                 eta_min=self.cfg.lr / self.cfg.eta_min_factor,
             )
 
             finetune_scheduler = CosineAnnealingLR(
-                self.optimizer, T_max=self.cfg.mosaic.disable_epoch, eta_min=0
+                self.optimizer,
+                T_max=self.cfg.mosaic.disable_epoch * train_steps,
+                eta_min=0,
             )
 
             scheduler = SequentialLR(
@@ -119,7 +123,7 @@ class Trainer:
             )
         else:
             scheduler = CosineAnnealingLR(
-                self.optimizer, T_max=self.cfg.epochs, eta_min=0
+                self.optimizer, T_max=self.cfg.epochs * train_steps, eta_min=0
             )
         return scheduler
 
@@ -279,6 +283,7 @@ class Trainer:
                     "Batch": f"{batch_idx + 1}/{len(self.train_dl)}",
                 }
             )
+            self.scheduler.step()  # and add this ?
 
         num_batches = len(self.train_dl)
         epoch_loss = {k: v / num_batches for k, v in epoch_loss.items()}
@@ -454,7 +459,7 @@ class Trainer:
 
             test_loss, test_metrics, _ = self.eval(self.test_dl, epoch)
 
-            self.scheduler.step()
+            # remove this right ? self.scheduler.step()
 
             epoch_pbar.update(1)
 
