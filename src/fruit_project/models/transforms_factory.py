@@ -34,7 +34,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                 p=0.4,
             ),
             A.Perspective(
-                scale=(0.025, 0.095), fit_output=True, fill=(114, 114, 114), p=0.2
+                scale=(0.01, 0.035), fit_output=True, fill=(114, 114, 114), p=0.15
             ),
             A.OneOf(
                 [
