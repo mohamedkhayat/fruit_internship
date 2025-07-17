@@ -3,7 +3,6 @@
 
 from typing import Tuple, Dict, Any, List
 import numpy as np
-import torch
 from torch.utils.data import Dataset
 import albumentations as A
 from albumentations import Compose
@@ -87,10 +86,10 @@ class AlbumentationsMosaicDataset(Dataset):
     def should_apply_mosaic(self) -> bool:
         """Determine if mosaic should be applied based on epoch and probability."""
         if self.current_epoch >= (self.total_epochs - self.disable_mosaic_epochs):
-            if not AlbumentationsMosaicDataset.has_warned_mosaic and (
-                (torch.utils.data.get_worker_info() is None)
-                or (torch.utils.data.get_worker_info().id == 0)
-            ):
+            if not AlbumentationsMosaicDataset.has_warned_mosaic:  # and (
+                #     (torch.utils.data.get_worker_info() is None)
+                #     or (torch.utils.data.get_worker_info().id == 0)
+                # ):
                 AlbumentationsMosaicDataset.has_warned_mosaic = True
                 tqdm.write("switched off mosaic")
             return False
