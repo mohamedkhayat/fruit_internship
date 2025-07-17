@@ -61,7 +61,6 @@ class Trainer:
         self.early_stopping: EarlyStopping = EarlyStopping(
             cfg.patience, cfg.delta, "checkpoints", name, run, cfg.log, cfg.upload
         )
-        self.scheduler: SequentialLR = self.get_scheduler()
         self.run: Run = run
         self.train_dl: DataLoader = train_dl
         self.test_dl: DataLoader = test_dl
@@ -80,6 +79,7 @@ class Trainer:
             f"effective_batch_size ({self.cfg.effective_batch_size}) must be divisible by batch_size "
             f"({self.accum_steps})."
         )
+        self.scheduler: SequentialLR = self.get_scheduler()
 
     def get_scheduler(self) -> SequentialLR:
         """
@@ -88,7 +88,7 @@ class Trainer:
         Returns:
             SequentialLR: The learning rate scheduler.
         """
-        train_steps = len(self.train_dl)
+        train_steps = len(self.train_dl) // self.accum_steps
 
         if self.cfg.phase == 1:
             total_warmup_steps = self.cfg.warmup_epochs * train_steps
@@ -270,6 +270,7 @@ class Trainer:
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
                 self.optimizer.zero_grad()
+                self.scheduler.step()  # and add this ?
 
             epoch_loss["loss"] += out.loss.item()
             epoch_loss["class_loss"] += loss_dict["loss_vfl"].item()
@@ -283,7 +284,6 @@ class Trainer:
                     "Batch": f"{batch_idx + 1}/{len(self.train_dl)}",
                 }
             )
-            self.scheduler.step()  # and add this ?
 
         num_batches = len(self.train_dl)
         epoch_loss = {k: v / num_batches for k, v in epoch_loss.items()}
