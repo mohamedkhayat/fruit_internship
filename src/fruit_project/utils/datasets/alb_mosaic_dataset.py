@@ -168,7 +168,7 @@ class AlbumentationsMosaicDataset(Dataset):
             )
             return augmented["image"], augmented["bboxes"], augmented["labels"]
         except Exception as e:
-            print(f"Mosaic augmentation failed for idx {idx}: {e}. Falling back.")
+            tqdm.write(f"Mosaic augmentation failed for idx {idx}: {e}. Falling back.")
             # Fallback should now use the easy transform
             return self._apply_fallback_transform(idx, use_easy_transforms=True)
 
@@ -209,7 +209,7 @@ class AlbumentationsMosaicDataset(Dataset):
             )
             return augmented["image"], augmented["bboxes"], augmented["labels"]
         except Exception as e:
-            print(f"Fallback transform failed for idx {idx}: {e}")
+            tqdm.write(f"Fallback transform failed for idx {idx}: {e}")
             resized = A.Resize(self.target_size, self.target_size)(image=img)
             return resized["image"], [], []
 
@@ -236,7 +236,7 @@ class AlbumentationsMosaicDataset(Dataset):
                 result = {k: v[0] for k, v in result.items()}
                 return result
             except Exception as e:
-                print(f"Processor failed for idx {idx}: {e}")
+                tqdm.write(f"Processor failed for idx {idx}: {e}")
                 raise AttributeError("HuggingFace Processor failed")
         else:
             raise AttributeError("No processor found")
