@@ -41,7 +41,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                         num_holes_range=(2, 8),
                         hole_height_range=(0.05, 0.25),
                         hole_width_range=(0.05, 0.25),
-                        fill_value=0,  # Black shadows
+                        fill=0,  # Black shadows
                         bbox_labels=box_labels,
                         p=1.0,
                     ),
@@ -50,7 +50,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                         num_holes_range=(2, 8),
                         hole_height_range=(0.05, 0.25),
                         hole_width_range=(0.05, 0.25),
-                        fill_value=114,  # COCO gray
+                        fill=114,  # COCO gray
                         bbox_labels=box_labels,
                         p=1.0,
                     ),
@@ -62,7 +62,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                             0.2,
                         ),
                         hole_width_range=(0.04, 0.2),
-                        fill_value=255,  # Bright white
+                        fill=255,  # Bright white
                         bbox_labels=box_labels,
                         p=1.0,
                     ),
@@ -120,7 +120,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                 num_holes_range=(1, 4),
                 hole_height_range=(0.02, 0.15),
                 hole_width_range=(0.02, 0.15),
-                fill_value=114,
+                fill=114,
                 bbox_labels=box_labels,
                 p=0.2,
             ),
