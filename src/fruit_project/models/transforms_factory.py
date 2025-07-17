@@ -33,7 +33,9 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                 fill=114,
                 p=0.4,
             ),
-            A.Perspective(scale=(0.025, 0.095), fit_output=True, fill=114, p=0.2),
+            A.Perspective(
+                scale=(0.025, 0.095), fit_output=True, fill=[114, 114, 114], p=0.2
+            ),
             A.OneOf(
                 [
                     # Shadow simulation (black holes)
