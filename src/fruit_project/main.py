@@ -45,6 +45,9 @@ def main(cfg: DictConfig):
         train_ds.lbl2id,
     )
 
+    if cfg.log:
+        run.watch(model)
+
     train_dl, test_dl, val_dl, test_sample = make_dataloaders(
         cfg, train_ds, test_ds, val_ds, generator, processor, transforms
     )
