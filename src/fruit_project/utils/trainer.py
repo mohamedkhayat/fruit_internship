@@ -89,10 +89,11 @@ class Trainer:
             SequentialLR: The learning rate scheduler.
         """
         if self.cfg.phase == 1:
+            total_warmup_steps = self.cfg.warmup_epochs * len(self.train_dl)
             warmup_scheduler = LinearLR(
                 self.optimizer,
                 start_factor=self.cfg.lin_start_factor,
-                total_iters=self.cfg.warmup_epochs,
+                total_iters=total_warmup_steps,
             )
 
             main_epochs = (
