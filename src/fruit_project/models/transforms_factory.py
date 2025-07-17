@@ -30,28 +30,9 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                 keep_ratio=True,
                 balanced_scale=True,
                 fill=114,
-                p=0.3,
+                p=0.4,
             ),
-            A.OneOf(
-                [
-                    A.RGBShift(10, 10, 10, p=0.2),
-                    A.HueSaturationValue(
-                        hue_shift_limit=5,
-                        sat_shift_limit=10,
-                        val_shift_limit=10,
-                        p=0.6,
-                    ),
-                ],
-                p=0.2,
-            ),
-            A.OneOf(
-                [
-                    A.Blur(blur_limit=7, p=0.5),
-                    A.MotionBlur(blur_limit=7, p=0.5),
-                    A.Defocus(radius=(1, 5), alias_blur=(0.1, 0.25), p=0.1),
-                ],
-                p=0.2,
-            ),
+            A.Perspective(scale=(0.025, 0.095), fit_output=True, fill=114, p=0.2),
             A.OneOf(
                 [
                     # Shadow simulation (black holes)
@@ -82,13 +63,33 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                         p=1.0,
                     ),
                 ],
-                p=0.35,
+                p=0.25,
+            ),
+            A.OneOf(
+                [
+                    A.RGBShift(25, 25, 25, p=0.2),
+                    A.HueSaturationValue(
+                        hue_shift_limit=20,
+                        sat_shift_limit=30,
+                        val_shift_limit=20,
+                        p=0.6,
+                    ),
+                ],
+                p=0.3,
+            ),
+            A.OneOf(
+                [
+                    A.Blur(blur_limit=7, p=0.5),
+                    A.MotionBlur(blur_limit=7, p=0.5),
+                    A.Defocus(radius=(1, 5), alias_blur=(0.1, 0.25), p=0.1),
+                ],
+                p=0.2,
             ),
             A.OneOf(
                 [
                     A.RandomBrightnessContrast(
                         brightness_limit=0.1,
-                        contrast_limit=0.1,
+                        contrast_limit=0.5,
                         ensure_safe_range=True,
                         p=0.5,
                     ),
@@ -96,7 +97,6 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                 ],
                 p=0.3,
             ),
-            A.Perspective(scale=(0.025, 0.095), fill=114, p=0.1),
             A.CLAHE(clip_limit=2.0, p=0.3),
         ],
         bbox_params=bbox_params,
@@ -111,6 +111,13 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                     A.Defocus(radius=(1, 5), alias_blur=(0.1, 0.25), p=0.1),
                 ],
                 p=0.1,
+            ),
+            A.ConstrainedCoarseDropout(
+                num_holes_range=(1, 4),
+                hole_height_range=(0.02, 0.15),
+                hole_width_range=(0.02, 0.15),
+                fill_value=0,
+                p=0.2,
             ),
             A.RandomBrightnessContrast(
                 brightness_limit=0.1, contrast_limit=0.1, ensure_safe_range=True, p=0.2
