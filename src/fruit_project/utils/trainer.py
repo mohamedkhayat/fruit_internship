@@ -95,16 +95,26 @@ class Trainer:
                 total_iters=self.cfg.warmup_epochs,
             )
 
+            main_epochs = (
+                self.cfg.epochs - self.cfg.warmup_epochs - self.cfg.mosaic.disable_epoch
+            )
             main_scheduler = CosineAnnealingLR(
                 self.optimizer,
-                T_max=self.cfg.epochs - self.cfg.warmup_epochs,
+                T_max=main_epochs,
                 eta_min=self.cfg.lr / self.cfg.eta_min_factor,
+            )
+
+            finetune_scheduler = CosineAnnealingLR(
+                self.optimizer, T_max=self.cfg.mosaic.disable_epoch, eta_min=0
             )
 
             scheduler = SequentialLR(
                 self.optimizer,
-                schedulers=[warmup_scheduler, main_scheduler],
-                milestones=[self.cfg.warmup_epochs],
+                schedulers=[warmup_scheduler, main_scheduler, finetune_scheduler],
+                milestones=[
+                    self.cfg.warmup_epochs,
+                    self.cfg.epochs - self.cfg.mosaic.disable_epoch,
+                ],
             )
         else:
             scheduler = CosineAnnealingLR(
@@ -433,17 +443,35 @@ class Trainer:
                     log_checkpoint_artifact(
                         self.run, ckpt_path, self.cfg.model.name, epoch, self.cfg.wait
                     )
-            if isinstance(
-                self.train_dl.dataset,
-                AlbumentationsMosaicDataset,
-            ):
+
+            if isinstance(self.train_dl.dataset, AlbumentationsMosaicDataset):
+                disable_threshold = self.cfg.epochs - self.cfg.mosaic.disable_epoch
+                print(
+                    f"BEFORE UPDATE: Epoch {epoch}, Current dataset epoch: {self.train_dl.dataset.current_epoch}"
+                )
+                print(
+                    f"THRESHOLD: {disable_threshold}, Should disable at epoch {disable_threshold}"
+                )
+
                 self.train_dl.dataset.update_epoch(epoch)
 
+                print(
+                    f"AFTER UPDATE: Dataset epoch now: {self.train_dl.dataset.current_epoch}"
+                )
+                if epoch >= disable_threshold:
+                    print(
+                        f"MOSAIC SHOULD BE DISABLED NOW! (epoch {epoch} >= threshold {disable_threshold})"
+                    )
+
+                should_apply = self.train_dl.dataset.should_apply_mosaic()
+                print(f"should_apply_mosaic() returns: {should_apply}")
+                print("-" * 60)
+
             train_loss = self.train(
-                epoch + 1,
+                epoch,
             )
 
-            test_loss, test_metrics, _ = self.eval(self.test_dl, epoch + 1)
+            test_loss, test_metrics, _ = self.eval(self.test_dl, epoch)
 
             self.scheduler.step()
 
