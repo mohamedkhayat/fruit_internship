@@ -98,27 +98,18 @@ class Trainer:
                 total_iters=total_warmup_steps,
             )
 
-            main_epochs = (
-                self.cfg.epochs - self.cfg.warmup_epochs - self.cfg.mosaic.disable_epoch
-            )
+            main_epochs = self.cfg.epochs - self.cfg.warmup_epochs
             main_scheduler = CosineAnnealingLR(
                 self.optimizer,
                 T_max=main_epochs * train_steps,
                 eta_min=self.cfg.lr / self.cfg.eta_min_factor,
             )
 
-            finetune_scheduler = CosineAnnealingLR(
-                self.optimizer,
-                T_max=self.cfg.mosaic.disable_epoch * train_steps,
-                eta_min=0,
-            )
-
             scheduler = SequentialLR(
                 self.optimizer,
-                schedulers=[warmup_scheduler, main_scheduler, finetune_scheduler],
+                schedulers=[warmup_scheduler, main_scheduler],
                 milestones=[
                     total_warmup_steps,
-                    total_warmup_steps + train_steps,
                 ],
             )
         else:
