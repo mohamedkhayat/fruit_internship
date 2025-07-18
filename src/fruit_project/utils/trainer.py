@@ -150,7 +150,7 @@ class Trainer:
         ]
 
         print(
-            f"Backbone params: {sum(p.numel() for p in backbone_params)} parameters at LR {self.cfg.lr_back_factor}"
+            f"Backbone params: {sum(p.numel() for p in backbone_params)} parameters at LR {self.cfg.lr / self.cfg.lr_back_factor}"
         )
         print(
             f"Head (Encoder, Decoder, Neck, etc.) params: {sum(p.numel() for p in head_params_final)} parameters at LR {self.cfg.lr}"
