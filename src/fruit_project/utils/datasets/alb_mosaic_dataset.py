@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2025 Mohamed Khayat
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from typing import Tuple, Dict, Any, List
+from typing import Optional, Tuple, Dict, Any, List
 import numpy as np
 from torch.utils.data import Dataset
 import albumentations as A
@@ -97,7 +97,7 @@ class AlbumentationsMosaicDataset(Dataset):
 
     def _validate_and_clip_bbox(
         self, bbox: List[float], img_width: int, img_height: int
-    ) -> List[float] | None:
+    ) -> Optional[List[float]]:
         """Validate and clip bounding box coordinates."""
         x, y, w, h = bbox
         x = max(0, min(x, img_width - 1))

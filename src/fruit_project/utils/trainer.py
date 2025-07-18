@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import os
-from typing import List, Tuple, Dict, Any
+from typing import List, Optional, Tuple, Dict, Any
 import torch
 from torch.amp import GradScaler
 from tqdm import tqdm
@@ -289,7 +289,7 @@ class Trainer:
     @torch.no_grad()
     def eval(
         self, test_dl: DataLoader, current_epoch: int, calc_cm: bool = False
-    ) -> Tuple[dict[str, float], dict[str, Any], ConfusionMatrix | None]:
+    ) -> Tuple[dict[str, float], dict[str, Any], Optional[ConfusionMatrix]]:
         """
         Evaluates the model on a given dataloader.
 
