@@ -98,10 +98,10 @@ class Trainer:
                 total_iters=total_warmup_steps,
             )
 
-            main_epochs = self.cfg.epochs - self.cfg.warmup_epochs
+            main_steps = (self.cfg.epochs - self.cfg.warmup_epochs) * train_steps
             main_scheduler = CosineAnnealingLR(
                 self.optimizer,
-                T_max=main_epochs * train_steps,
+                T_max=main_steps,
                 eta_min=self.cfg.lr / self.cfg.eta_min_factor,
             )
 
