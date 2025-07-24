@@ -23,7 +23,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
         [
             A.HorizontalFlip(p=0.5),
             A.Affine(
-                scale=(0.8, 1.2),
+                scale=(0.9, 1.1),
                 translate_percent={"x": (-0.05, 0.05), "y": (-0.05, 0.05)},
                 rotate=(-5, 5),
                 shear={"x": (-3, 3), "y": (-3, 3)},
@@ -36,41 +36,41 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
             A.Perspective(
                 scale=(0.01, 0.035), fit_output=True, fill=(114, 114, 114), p=0.15
             ),
-            A.OneOf(
-                [
-                    # Shadow simulation (black holes)
-                    A.ConstrainedCoarseDropout(
-                        num_holes_range=(2, 8),
-                        hole_height_range=(0.05, 0.25),
-                        hole_width_range=(0.05, 0.25),
-                        fill=(0, 0, 0),  # Black shadows
-                        bbox_labels=box_labels,
-                        p=1.0,
-                    ),
-                    # Neutral background (gray holes)
-                    A.ConstrainedCoarseDropout(
-                        num_holes_range=(2, 8),
-                        hole_height_range=(0.05, 0.25),
-                        hole_width_range=(0.05, 0.25),
-                        fill=(114, 114, 114),  # COCO gray
-                        bbox_labels=box_labels,
-                        p=1.0,
-                    ),
-                    # Overexposure simulation (white holes)
-                    A.ConstrainedCoarseDropout(
-                        num_holes_range=(1, 6),
-                        hole_height_range=(
-                            0.04,
-                            0.2,
-                        ),
-                        hole_width_range=(0.04, 0.2),
-                        fill=(255, 255, 255),  # Bright white
-                        bbox_labels=box_labels,
-                        p=1.0,
-                    ),
-                ],
-                p=0.25,
-            ),
+            # A.OneOf(
+            #     [
+            #         # Shadow simulation (black holes)
+            #         A.ConstrainedCoarseDropout(
+            #             num_holes_range=(2, 8),
+            #             hole_height_range=(0.05, 0.25),
+            #             hole_width_range=(0.05, 0.25),
+            #             fill=(0, 0, 0),  # Black shadows
+            #             bbox_labels=box_labels,
+            #             p=1.0,
+            #         ),
+            #         # Neutral background (gray holes)
+            #         A.ConstrainedCoarseDropout(
+            #             num_holes_range=(2, 8),
+            #             hole_height_range=(0.05, 0.25),
+            #             hole_width_range=(0.05, 0.25),
+            #             fill=(114, 114, 114),  # COCO gray
+            #             bbox_labels=box_labels,
+            #             p=1.0,
+            #         ),
+            #         # Overexposure simulation (white holes)
+            #         A.ConstrainedCoarseDropout(
+            #             num_holes_range=(1, 6),
+            #             hole_height_range=(
+            #                 0.04,
+            #                 0.2,
+            #             ),
+            #             hole_width_range=(0.04, 0.2),
+            #             fill=(255, 255, 255),  # Bright white
+            #             bbox_labels=box_labels,
+            #             p=1.0,
+            #         ),
+            #     ],
+            #     p=0.25,
+            # ),
             A.OneOf(
                 [
                     A.RGBShift(20, 20, 20, p=0.2),

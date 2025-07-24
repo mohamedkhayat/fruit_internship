@@ -5,7 +5,7 @@ defaults:
 effective_batch_size: 64
 step_batch_size : 8
 epochs: 30
-lr: 0.0001
+lr: 1e-5
 weight_decay: 0.01
 warmup_epochs: 5
 root_dir: Fruit_dataset
@@ -16,8 +16,7 @@ patience : 15
 delta : 0.001
 num_workers : 4
 download_data : False
-lr_back_factor : 50
-lr_enc_dec_factor : 5
+lr_back_factor : 20
 
 ckpt:
   save : False
