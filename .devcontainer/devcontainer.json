@@ -11,7 +11,7 @@
     "workspaceFolder": "/workspace",
     "mounts": [
     "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
-    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.cache/huggingface,target=/home/vscode/.cache/huggingface,type=bind,consistency=cached"
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.cache/huggingface,target=/home/root/.cache/huggingface,type=bind,consistency=cached"
   ],
     "customizations": {
         "vscode": {
