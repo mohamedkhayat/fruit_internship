@@ -1,0 +1,41 @@
+# Git stuff
+.git
+.gitignore
+README.md
+
+# Development files
+node_modules
+*.log
+.env
+.env.local
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist/
+build/
+target/
+
+# Docker files (don't copy Dockerfile into image)
+Dockerfile
+.dockerignore
+
+# Large datasets or temp files
+data/
+temp/
+*.tmp
+
+
+checkpoints/
+.ruff_cache/
+.mypy_cache/
+outputs/
+wandb/
