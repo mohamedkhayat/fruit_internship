@@ -91,7 +91,8 @@ class AlbumentationsMosaicDataset(Dataset):
                 #     or (torch.utils.data.get_worker_info().id == 0)
                 # ):
                 AlbumentationsMosaicDataset.has_warned_mosaic = True
-                tqdm.write("switched off mosaic")
+                # tqdm.write("switched off mosaic")
+                print("Switched off mosaic")
             return False
         return np.random.rand() < self.mosaic_prob
 
