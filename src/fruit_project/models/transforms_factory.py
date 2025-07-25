@@ -24,59 +24,28 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
             A.HorizontalFlip(p=0.5),
             A.Affine(
                 scale=(0.9, 1.1),
-                translate_percent={"x": (-0.05, 0.05), "y": (-0.05, 0.05)},
+                translate_percent={"x": (-0.02, 0.02), "y": (-0.02, 0.02)},
                 rotate=(-5, 5),
-                shear={"x": (-3, 3), "y": (-3, 3)},
-                fit_output=True,
-                keep_ratio=True,
-                balanced_scale=True,
                 fill=(114, 114, 114),
-                p=0.4,
+                p=0.3,
             ),
             A.Perspective(
                 scale=(0.01, 0.035), fit_output=True, fill=(114, 114, 114), p=0.15
             ),
-            # A.OneOf(
-            #     [
-            #         # Shadow simulation (black holes)
-            #         A.ConstrainedCoarseDropout(
-            #             num_holes_range=(2, 8),
-            #             hole_height_range=(0.05, 0.25),
-            #             hole_width_range=(0.05, 0.25),
-            #             fill=(0, 0, 0),  # Black shadows
-            #             bbox_labels=box_labels,
-            #             p=1.0,
-            #         ),
-            #         # Neutral background (gray holes)
-            #         A.ConstrainedCoarseDropout(
-            #             num_holes_range=(2, 8),
-            #             hole_height_range=(0.05, 0.25),
-            #             hole_width_range=(0.05, 0.25),
-            #             fill=(114, 114, 114),  # COCO gray
-            #             bbox_labels=box_labels,
-            #             p=1.0,
-            #         ),
-            #         # Overexposure simulation (white holes)
-            #         A.ConstrainedCoarseDropout(
-            #             num_holes_range=(1, 6),
-            #             hole_height_range=(
-            #                 0.04,
-            #                 0.2,
-            #             ),
-            #             hole_width_range=(0.04, 0.2),
-            #             fill=(255, 255, 255),  # Bright white
-            #             bbox_labels=box_labels,
-            #             p=1.0,
-            #         ),
-            #     ],
-            #     p=0.25,
-            # ),
+            A.ConstrainedCoarseDropout(
+                num_holes_range=(1, 3),
+                hole_height_range=(0.05, 0.25),
+                hole_width_range=(0.05, 0.25),
+                fill=(0, 0, 0),
+                bbox_labels=box_labels,
+                p=0.3,
+            ),
             A.OneOf(
                 [
-                    A.RGBShift(20, 20, 20, p=0.2),
+                    A.RGBShift(10, 10, 10, p=0.2),
                     A.HueSaturationValue(
                         hue_shift_limit=10,
-                        sat_shift_limit=20,
+                        sat_shift_limit=10,
                         val_shift_limit=10,
                         p=0.6,
                     ),
@@ -85,8 +54,8 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
             ),
             A.OneOf(
                 [
-                    A.Blur(blur_limit=7, p=0.5),
-                    A.MotionBlur(blur_limit=7, p=0.5),
+                    A.Blur(blur_limit=5, p=0.5),
+                    A.MotionBlur(blur_limit=5, p=0.5),
                     A.Defocus(radius=(1, 5), alias_blur=(0.1, 0.25), p=0.1),
                 ],
                 p=0.2,
@@ -95,7 +64,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                 [
                     A.RandomBrightnessContrast(
                         brightness_limit=0.1,
-                        contrast_limit=0.5,
+                        contrast_limit=0.1,
                         ensure_safe_range=True,
                         p=0.5,
                     ),
@@ -112,19 +81,11 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
             A.HorizontalFlip(p=0.5),
             A.OneOf(
                 [
-                    A.Blur(blur_limit=5, p=0.5),
-                    A.MotionBlur(blur_limit=5, p=0.5),
+                    A.Blur(blur_limit=3, p=0.5),
+                    A.MotionBlur(blur_limit=3, p=0.5),
                     A.Defocus(radius=(1, 5), alias_blur=(0.1, 0.25), p=0.1),
                 ],
                 p=0.1,
-            ),
-            A.ConstrainedCoarseDropout(
-                num_holes_range=(1, 4),
-                hole_height_range=(0.02, 0.15),
-                hole_width_range=(0.02, 0.15),
-                fill=(114, 114, 114),
-                bbox_labels=box_labels,
-                p=0.2,
             ),
             A.RandomBrightnessContrast(
                 brightness_limit=0.1, contrast_limit=0.1, ensure_safe_range=True, p=0.2
