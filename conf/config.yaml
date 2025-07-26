@@ -27,7 +27,7 @@ ckpt:
 wait : False
 info : False
 min_area : 25.0
-min_viz : 0.3
+min_viz : 0.2
 min_width : 2.0
 min_height : 2.0
 aug : hard
@@ -48,5 +48,5 @@ ema:
   use : True
   decay : 0.9999
 
-gradient_checkpointing : True
 optim : 8bit
+threshold : 0.0
