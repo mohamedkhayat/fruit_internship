@@ -164,9 +164,25 @@ class Trainer:
             f"Head (Encoder, Decoder, Neck, etc.) params: {sum(p.numel() for p in head_params_final)} parameters at LR {self.cfg.lr}"
         )
 
-        optimizer = AdamW(
-            param_dicts, weight_decay=self.cfg.weight_decay, fused=True, foreach=True
-        )
+        if self.cfg.optim == "8bit":
+            tqdm.write("using AdamW8bit")
+            import bitsandbytes as bnb
+
+            optimizer = bnb.optim.AdamW8bit(
+                param_dicts,
+                weight_decay=self.cfg.weight_decay,
+            )
+        elif self.cfg.optim == "torch":
+            tqdm.write("using torch AdamW")
+            optimizer = AdamW(
+                param_dicts,
+                weight_decay=self.cfg.weight_decay,
+                fused=True,
+                foreach=True,
+            )
+        else:
+            raise KeyError("invalid optim type, use 8bit or torch")
+
         return optimizer
 
     def move_labels_to_device(self, batch: BatchEncoding) -> BatchEncoding:

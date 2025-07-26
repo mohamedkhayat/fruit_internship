@@ -5,7 +5,7 @@ defaults:
 effective_batch_size: 64
 step_batch_size : 8
 epochs: 30
-lr: 1e-5
+lr: 1e-4
 weight_decay: 1e-4
 warmup_epochs: 5
 root_dir: Fruit_dataset
@@ -36,10 +36,17 @@ freeze_backbone : False
 partially_freeze_backbone : False
 upload : False
 mosaic:
-  use : True
+  use : False
   prob : 0.8
   disable_epoch : 10
 decoder_method : default
 phase : 1
-eta_min_factor : 10
-lin_start_factor : 0.1
+eta_min_factor : 100
+lin_start_factor : 0.001
+
+ema:
+  use : True
+  decay : 0.9999
+
+gradient_checkpointing : True
+optim : 8bit
