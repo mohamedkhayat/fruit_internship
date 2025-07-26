@@ -172,7 +172,7 @@ class MAPEvaluator:
         self,
         image_processor,
         device,
-        threshold: float = 0.01,
+        threshold: float = 0.0,
         id2label: Optional[Dict[int, str]] = None,
     ):
         self.image_processor = image_processor
