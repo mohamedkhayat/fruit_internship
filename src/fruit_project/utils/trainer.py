@@ -70,7 +70,7 @@ class Trainer:
         self.map_evaluator = MAPEvaluator(
             image_processor=processor,
             device=self.device,
-            threshold=0.01,
+            threshold=self.cfg.threshold,
             id2label=train_dl.dataset.id2lbl,
         )
         self.accum_steps: int = (
@@ -178,7 +178,6 @@ class Trainer:
                 param_dicts,
                 weight_decay=self.cfg.weight_decay,
                 fused=True,
-                foreach=True,
             )
         else:
             raise KeyError("invalid optim type, use 8bit or torch")
@@ -285,12 +284,12 @@ class Trainer:
                 self.scaler.unscale_(self.optimizer)
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.1)
                 self.scaler.step(self.optimizer)
+                self.scheduler.step()
                 self.scaler.update()
                 self.optimizer.zero_grad(set_to_none=True)
-                self.scheduler.step()
 
-                if self.ema and current_epoch >= self.cfg.warmup_epochs:
-                    self.ema.update()
+            if self.ema and current_epoch >= self.cfg.warmup_epochs:
+                self.ema.update()
 
             epoch_loss["loss"] += out.loss.item()
             epoch_loss["class_loss"] += loss_dict["loss_vfl"].item()
@@ -356,7 +355,7 @@ class Trainer:
 
         if calc_cm:
             cm = ConfusionMatrix(
-                nc=len(test_dl.dataset.labels), conf=0.25, iou_thres=0.45
+                nc=len(test_dl.dataset.labels), conf=0.374, iou_thres=0.45
             )
         else:
             cm = None
@@ -407,13 +406,7 @@ class Trainer:
                 }
             )
             if calc_cm and cm:
-                sizes = torch.stack(
-                    [t["size"].clone().detach() for t in batch["labels"]]
-                )
-                preds = self.processor.post_process_object_detection(
-                    out, threshold=0.01, target_sizes=sizes
-                )
-                preds = self.nested_to_cpu(preds)
+                preds = self.nested_to_cpu(batch_preds_processed)
                 targets_for_cm = self.format_targets_for_cm(batch["labels"])
                 cm.update(preds, targets_for_cm)
 
