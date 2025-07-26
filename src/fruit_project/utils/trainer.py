@@ -4,6 +4,7 @@
 import os
 from typing import List, Optional, Tuple, Dict, Any
 import torch
+import torch.nn as nn
 from torch.amp import GradScaler
 from tqdm import tqdm
 from transformers.image_transforms import center_to_corners_format
@@ -13,10 +14,10 @@ from fruit_project.utils.early_stop import EarlyStopping
 from torch.optim.lr_scheduler import CosineAnnealingLR, SequentialLR, LinearLR
 from fruit_project.utils.metrics import ConfusionMatrix, MAPEvaluator
 from transformers import AutoImageProcessor, BatchEncoding
-import torch.nn as nn
 from wandb.sdk.wandb_run import Run
 from torch.utils.data import DataLoader
 from torch.optim import AdamW, Optimizer
+from torch_ema import ExponentialMovingAverage
 from fruit_project.utils.logging import (
     log_checkpoint_artifact,
     log_epoch_data,
@@ -80,6 +81,13 @@ class Trainer:
             f"({self.accum_steps})."
         )
         self.scheduler: SequentialLR = self.get_scheduler()
+        self.ema: ExponentialMovingAverage = (
+            None
+            if not self.cfg.ema.use
+            else ExponentialMovingAverage(
+                self.model.parameters(), decay=self.cfg.ema.decay
+            )
+        )
 
     def get_scheduler(self) -> SequentialLR:
         """
@@ -156,7 +164,9 @@ class Trainer:
             f"Head (Encoder, Decoder, Neck, etc.) params: {sum(p.numel() for p in head_params_final)} parameters at LR {self.cfg.lr}"
         )
 
-        optimizer = AdamW(param_dicts, weight_decay=self.cfg.weight_decay)
+        optimizer = AdamW(
+            param_dicts, weight_decay=self.cfg.weight_decay, fused=True, foreach=True
+        )
         return optimizer
 
     def move_labels_to_device(self, batch: BatchEncoding) -> BatchEncoding:
@@ -248,7 +258,7 @@ class Trainer:
             batch["pixel_values"] = batch["pixel_values"].to(self.device)
             batch = self.move_labels_to_device(batch)
 
-            with torch.autocast(device_type=self.device.type, dtype=torch.bfloat16):
+            with torch.autocast(device_type=self.device.type, dtype=torch.float16):
                 out = self.model(**batch)
                 batch_loss = out.loss / self.accum_steps
                 loss_dict = out.loss_dict
@@ -260,8 +270,11 @@ class Trainer:
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.1)
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
-                self.optimizer.zero_grad()
-                self.scheduler.step()  # and add this ?
+                self.optimizer.zero_grad(set_to_none=True)
+                self.scheduler.step()
+
+                if self.ema and current_epoch >= self.cfg.warmup_epochs:
+                    self.ema.update()
 
             epoch_loss["loss"] += out.loss.item()
             epoch_loss["class_loss"] += loss_dict["loss_vfl"].item()
@@ -275,6 +288,8 @@ class Trainer:
                     "Batch": f"{batch_idx + 1}/{len(self.train_dl)}",
                 }
             )
+            if batch_idx % 50 == 0:
+                torch.cuda.empty_cache()
 
         num_batches = len(self.train_dl)
         epoch_loss = {k: v / num_batches for k, v in epoch_loss.items()}
@@ -288,6 +303,17 @@ class Trainer:
 
     @torch.no_grad()
     def eval(
+        self, test_dl: DataLoader, current_epoch: int, calc_cm: bool = False
+    ) -> Tuple[dict[str, float], dict[str, Any], Optional[ConfusionMatrix]]:
+        if self.ema and current_epoch >= self.cfg.warmup_epochs:
+            tqdm.write("evaluating with EMA weights")
+            with self.ema.average_parameters():
+                return self._run_eval(test_dl, current_epoch, calc_cm)
+        else:
+            tqdm.write("evaluating with regular weights")
+            return self._run_eval(test_dl, current_epoch, calc_cm)
+
+    def _run_eval(
         self, test_dl: DataLoader, current_epoch: int, calc_cm: bool = False
     ) -> Tuple[dict[str, float], dict[str, Any], Optional[ConfusionMatrix]]:
         """
@@ -475,6 +501,17 @@ class Trainer:
 
         epoch_pbar.close()
 
+    def _build_save_dict(self, epoch):
+        ckpt = {
+            "epoch": epoch,
+            "model": self.model.state_dict(),
+            "optimizer": self.optimizer.state_dict(),
+            "scheduler": self.scheduler.state_dict(),
+            "scaler": self.scaler.state_dict(),
+            "ema": self.ema.state_dict(),
+        }
+        return ckpt
+
     def _save_checkpoint(self, epoch: int) -> str:
         """
         Saves a checkpoint of the model, optimizer, scheduler, and scaler states.
@@ -486,13 +523,13 @@ class Trainer:
             str: The path to the saved checkpoint file.
         """
         tqdm.write("saving checkpoint")
-        ckpt = {
-            "epoch": epoch,
-            "model": self.model.state_dict(),
-            "optimizer": self.optimizer.state_dict(),
-            "scheduler": self.scheduler.state_dict(),
-            "scaler": self.scaler.state_dict(),
-        }
+        if self.ema:
+            with self.ema.average_parameters():
+                ckpt = self._build_save_dict(epoch)
+            ckpt.update({"ema": self.ema.state_dict()})
+        else:
+            ckpt = self._build_save_dict(epoch)
+
         path = os.path.join("checkpoints", f"{self.name}_epoch{epoch}.pth")
         torch.save(ckpt, path)
         tqdm.write("done saving checkpoint")
@@ -514,4 +551,6 @@ class Trainer:
             self.optimizer.load_state_dict(ckpt["optimizer"])
             self.scheduler.load_state_dict(ckpt["scheduler"])
             self.scaler.load_state_dict(ckpt["scaler"])
+            if "ema" in ckpt:
+                self.ema.load_state_dict(ckpt["ema"])
             self.start_epoch = ckpt["epoch"] + 1
