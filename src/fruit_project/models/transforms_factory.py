@@ -43,9 +43,8 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                         fill=(114, 114, 114),
                         p=1.0,
                     ),
-                    A.NoOp(p=1.0),
                 ],
-                p=0.45,
+                p=0.3,
             ),
             A.ConstrainedCoarseDropout(
                 num_holes_range=(1, 2),
@@ -66,7 +65,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                     A.RandomGamma(gamma_limit=(80, 120), p=1.0),
                     A.RandomToneCurve(p=1.0),
                 ],
-                p=0.5,
+                p=0.3,
             ),
             A.OneOf(
                 [
@@ -80,7 +79,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                         r_shift_limit=15, g_shift_limit=15, b_shift_limit=15, p=1.0
                     ),
                 ],
-                p=0.4,
+                p=0.3,
             ),
             A.OneOf(
                 [
@@ -109,7 +108,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
             A.RandomBrightnessContrast(
                 brightness_limit=0.1, contrast_limit=0.1, ensure_safe_range=True, p=0.2
             ),
-            A.CLAHE(clip_limit=1.5, p=0.1),
+            A.CLAHE(clip_limit=1.0, p=0.1),
         ],
         bbox_params=bbox_params,
     )
