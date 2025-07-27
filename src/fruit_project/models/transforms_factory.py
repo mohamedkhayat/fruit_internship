@@ -21,58 +21,77 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
     box_labels = [k for k in id2label.keys()]
     hard_train_transforms = A.Compose(
         [
-            A.HorizontalFlip(p=0.5),
-            A.Affine(
-                scale=(0.9, 1.1),
-                translate_percent={"x": (-0.02, 0.02), "y": (-0.02, 0.02)},
-                rotate=(-5, 5),
-                fill=(114, 114, 114),
+            A.RandomSizedBBoxSafeCrop(
+                height=cfg.model.input_size,
+                width=cfg.model.input_size,
+                erosion_rate=0.0,
                 p=0.3,
             ),
-            A.Perspective(
-                scale=(0.01, 0.035), fit_output=True, fill=(114, 114, 114), p=0.15
+            A.HorizontalFlip(p=0.5),
+            A.OneOf(
+                [
+                    A.Affine(
+                        scale=(0.8, 1.2),
+                        translate_percent={"x": (-0.02, 0.02), "y": (-0.02, 0.02)},
+                        rotate=(-5, 5),
+                        fill=(114, 114, 114),
+                        p=1.0,
+                    ),
+                    A.Perspective(
+                        scale=(0.02, 0.05),
+                        fit_output=True,
+                        fill=(114, 114, 114),
+                        p=1.0,
+                    ),
+                    A.NoOp(p=1.0),
+                ],
+                p=0.45,
             ),
             A.ConstrainedCoarseDropout(
-                num_holes_range=(1, 3),
-                hole_height_range=(0.05, 0.25),
-                hole_width_range=(0.05, 0.25),
-                fill=(0, 0, 0),
+                num_holes_range=(1, 2),
+                hole_height_range=(0.05, 0.15),
+                hole_width_range=(0.05, 0.15),
+                fill=(114, 114, 114),
                 bbox_labels=box_labels,
-                p=0.3,
-            ),
-            A.OneOf(
-                [
-                    A.RGBShift(10, 10, 10, p=0.2),
-                    A.HueSaturationValue(
-                        hue_shift_limit=10,
-                        sat_shift_limit=10,
-                        val_shift_limit=10,
-                        p=0.6,
-                    ),
-                ],
-                p=0.3,
-            ),
-            A.OneOf(
-                [
-                    A.Blur(blur_limit=5, p=0.5),
-                    A.MotionBlur(blur_limit=5, p=0.5),
-                    A.Defocus(radius=(1, 5), alias_blur=(0.1, 0.25), p=0.1),
-                ],
                 p=0.2,
             ),
             A.OneOf(
                 [
                     A.RandomBrightnessContrast(
-                        brightness_limit=0.1,
-                        contrast_limit=0.1,
+                        brightness_limit=0.2,
+                        contrast_limit=0.2,
                         ensure_safe_range=True,
-                        p=0.5,
+                        p=1.0,
                     ),
-                    A.RandomToneCurve(p=0.7),
+                    A.RandomGamma(gamma_limit=(80, 120), p=1.0),
+                    A.RandomToneCurve(p=1.0),
                 ],
-                p=0.3,
+                p=0.5,
             ),
-            A.CLAHE(clip_limit=2.0, p=0.3),
+            A.OneOf(
+                [
+                    A.HueSaturationValue(
+                        hue_shift_limit=20,
+                        sat_shift_limit=30,
+                        val_shift_limit=20,
+                        p=1.0,
+                    ),
+                    A.RGBShift(
+                        r_shift_limit=15, g_shift_limit=15, b_shift_limit=15, p=1.0
+                    ),
+                ],
+                p=0.4,
+            ),
+            A.OneOf(
+                [
+                    A.Blur(blur_limit=3, p=0.5),
+                    A.MotionBlur(blur_limit=3, p=0.5),
+                    A.Defocus(radius=(1, 3), alias_blur=(0.1, 0.25), p=0.1),
+                    A.MedianBlur(blur_limit=3, p=0.2),
+                ],
+                p=0.1,
+            ),
+            A.CLAHE(clip_limit=1.5, p=0.1),
         ],
         bbox_params=bbox_params,
     )
