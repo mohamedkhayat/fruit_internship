@@ -19,7 +19,7 @@ from wandb.sdk.wandb_run import Run
 from typing import Dict, Tuple, List, Optional
 from fruit_project.utils.metrics import ConfusionMatrix
 from transformers.image_transforms import center_to_corners_format
-
+import datetime
 
 def initwandb(cfg: DictConfig) -> Run:
     """
@@ -59,7 +59,9 @@ def get_run_name(cfg: DictConfig) -> str:
     Returns:
         str: The generated run name.
     """
-    name = f"model={cfg.model.name}_lr={cfg.lr}"
+    now = datetime.datetime.now()
+    date_str = now.strftime("%m%d_%H%M")
+    name = f"model={cfg.model.name}_lr={cfg.lr}_{date_str}"
     return name
 
 
