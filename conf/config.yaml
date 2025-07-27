@@ -16,7 +16,7 @@ patience : 15
 delta : 0.001
 num_workers : 4
 download_data : False
-lr_back_factor : 10
+lr_back_factor : 30
 
 ckpt:
   save : False
@@ -41,7 +41,7 @@ mosaic:
   disable_epoch : 10
 decoder_method : default
 phase : 1
-eta_min_factor : 100
+eta_min_factor : 25
 lin_start_factor : 0.001
 
 ema:
