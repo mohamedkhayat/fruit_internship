@@ -21,7 +21,7 @@ from torch_ema import ExponentialMovingAverage
 from fruit_project.utils.logging import (
     log_checkpoint_artifact,
     log_epoch_data,
-    log_val_data,
+    log_test_data,
 )
 
 
@@ -318,18 +318,18 @@ class Trainer:
 
     @torch.no_grad()
     def eval(
-        self, test_dl: DataLoader, current_epoch: int, calc_cm: bool = False
+        self, val_dl: DataLoader, current_epoch: int, calc_cm: bool = False
     ) -> Tuple[dict[str, float], dict[str, Any], Optional[ConfusionMatrix]]:
         if self.ema and current_epoch >= self.cfg.warmup_epochs:
             tqdm.write("evaluating with EMA weights")
             with self.ema.average_parameters():
-                return self._run_eval(test_dl, current_epoch, calc_cm)
+                return self._run_eval(val_dl, current_epoch, calc_cm)
         else:
             tqdm.write("evaluating with regular weights")
-            return self._run_eval(test_dl, current_epoch, calc_cm)
+            return self._run_eval(val_dl, current_epoch, calc_cm)
 
     def _run_eval(
-        self, test_dl: DataLoader, current_epoch: int, calc_cm: bool = False
+        self, val_dl: DataLoader, current_epoch: int, calc_cm: bool = False
     ) -> Tuple[dict[str, float], dict[str, Any], Optional[ConfusionMatrix]]:
         """
         Evaluates the model on a given dataloader.
@@ -355,13 +355,13 @@ class Trainer:
 
         if calc_cm:
             cm = ConfusionMatrix(
-                nc=len(test_dl.dataset.labels), conf=0.374, iou_thres=0.45
+                nc=len(val_dl.dataset.labels), conf=0.374, iou_thres=0.45
             )
         else:
             cm = None
 
         progress_bar = tqdm(
-            test_dl,
+            val_dl,
             desc=f"Epoch {current_epoch} Evaluating",
             leave=False,
             bar_format="{l_bar}{bar:30}{r_bar}{bar:-30b}",
@@ -402,7 +402,7 @@ class Trainer:
             progress_bar.set_postfix(
                 {
                     "Loss": f"{current_avg_loss:.4f}",
-                    "Batch": f"{batch_idx + 1}/{len(test_dl)}",
+                    "Batch": f"{batch_idx + 1}/{len(val_dl)}",
                 }
             )
             if calc_cm and cm:
@@ -412,8 +412,8 @@ class Trainer:
 
         tqdm.write("Computing mAP metrics")
         map_50_95_metrics = self.map_evaluator.map_metric.compute()
-        test_map = map_50_95_metrics.get("map", 0.0)
-        test_map50 = map_50_95_metrics.get("map_50", 0.0)
+        val_map = map_50_95_metrics.get("map", 0.0)
+        val_map50 = map_50_95_metrics.get("map_50", 0.0)
         map_50_metrics = self.map_evaluator.map_50_metric.compute()
         optimal_precisions, optimal_recalls = (
             self.map_evaluator.get_optimal_f1_ultralytics_style(map_50_metrics)
@@ -426,9 +426,9 @@ class Trainer:
                 optimal_precisions, optimal_recalls, present_classes
             )
         )
-        test_metrics = {
-            "map@50:95": test_map,
-            "map@50": test_map50,
+        val_metrics = {
+            "map@50:95": val_map,
+            "map@50": val_map50,
             "map@50_per_class": self.map_evaluator.get_per_class(
                 map_50_metrics, metric="map_per_class"
             ),
@@ -438,26 +438,26 @@ class Trainer:
             "recall": overall_recall,
         }
 
-        num_batches = len(test_dl)
+        num_batches = len(val_dl)
         epoch_loss = {k: v / num_batches for k, v in epoch_loss.items()}
 
         tqdm.write(
             f"\tEval  --- Loss: {epoch_loss['loss']:.4f}, Class Loss : {epoch_loss['class_loss']:.4f}, Bbox Loss : {epoch_loss['bbox_loss']:.4f}, Giou Loss : {epoch_loss['giou_loss']:.4f}"
         )
-        tqdm.write(f"\tEval  --- mAP50-95: {test_map:.4f}, mAP@50 : {test_map50:.4f}")
+        tqdm.write(f"\tEval  --- mAP50-95: {val_map:.4f}, mAP@50 : {val_map50:.4f}")
 
         tqdm.write("\t--- Per-class mAP@50 ---")
-        class_names = test_dl.dataset.labels
-        if test_metrics["map@50_per_class"].is_cuda:
-            test_metrics["map@50_per_class"] = test_metrics["map@50_per_class"].cpu()
+        class_names = val_dl.dataset.labels
+        if val_metrics["map@50_per_class"].is_cuda:
+            val_metrics["map@50_per_class"] = val_metrics["map@50_per_class"].cpu()
 
         for i, class_name in enumerate(class_names):
-            if i < len(test_metrics["map@50_per_class"]):
+            if i < len(val_metrics["map@50_per_class"]):
                 tqdm.write(
-                    f"\t\t{class_name:<15}: {test_metrics['map@50_per_class'][i].item():.4f}"
+                    f"\t\t{class_name:<15}: {val_metrics['map@50_per_class'][i].item():.4f}"
                 )
 
-        return epoch_loss, test_metrics, cm
+        return epoch_loss, val_metrics, cm
 
     def fit(self) -> None:
         """
@@ -465,7 +465,7 @@ class Trainer:
         """
         epoch_pbar = tqdm(total=self.cfg.epochs, desc="Epochs", position=0, leave=True)
 
-        best_test_map = 0
+        best_val_map = 0
 
         for epoch in range(self.start_epoch, self.cfg.epochs):
             epoch_pbar.set_description(f"Epoch {epoch}/{self.cfg.epochs}")
@@ -483,29 +483,29 @@ class Trainer:
                 epoch,
             )
 
-            test_loss, test_metrics, _ = self.eval(self.test_dl, epoch)
+            val_loss, val_metrics, _ = self.eval(self.val_dl, epoch)
 
             epoch_pbar.update(1)
 
-            best_test_map = max(test_metrics["map@50"], best_test_map)
+            best_val_map = max(val_metrics["map@50"], best_val_map)
 
             if self.cfg.log:
                 log_epoch_data(
                     epoch,
                     train_loss,
-                    test_loss,
-                    test_metrics,
+                    val_loss,
+                    val_metrics,
                     self,
                 )
 
-            if self.early_stopping(test_metrics["map@50:95"], self.model):
+            if self.early_stopping(val_metrics["map@50:95"], self.model):
                 tqdm.write(f"Early stopping triggered at epoch {epoch}.")
                 break
 
         tqdm.write("Training finished.")
 
         if self.cfg.log:
-            log_val_data(epoch, best_test_map, self)
+            log_test_data(epoch, best_val_map, self)
             self.run.finish()
 
         epoch_pbar.close()
