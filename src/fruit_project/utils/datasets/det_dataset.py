@@ -58,6 +58,7 @@ class DET_DS(Dataset):
         transforms: Compose = None,
         input_size: int = 224,
         processor=None,
+        normalize=False,
     ):
         self.root_dir = pathlib.Path("data", root_dir)
         self.type = type
@@ -67,6 +68,7 @@ class DET_DS(Dataset):
         self.input_size = input_size
         self.config_dir = self.root_dir / config_file
         self.processor = processor
+        self.normalize = normalize
         raw_paths = sorted(list(pathlib.Path(self.image_dir).glob("*.jpg")))
 
         with open(self.config_dir, "r") as f:
@@ -162,6 +164,7 @@ class DET_DS(Dataset):
                 annotations=target,
                 return_tensors="pt",
                 do_pad=False,
+                do_normalize=self.normalize,
             )
             result = {k: v[0] for k, v in result.items()}
             return result
