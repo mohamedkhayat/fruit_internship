@@ -39,7 +39,6 @@ mosaic:
   use : False
   prob : 0.8
   disable_epoch : 10
-decoder_method : default
 phase : 1
 eta_min_factor : 25
 lin_start_factor : 0.001

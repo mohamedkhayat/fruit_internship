@@ -1,2 +1,3 @@
 name : detrv2_101
 input_size : 640
+decoder_method : default

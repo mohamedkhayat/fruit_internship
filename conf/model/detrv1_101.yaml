@@ -1,0 +1,3 @@
+name : detrv1_101
+input_size : 640
+do_normalize : True
