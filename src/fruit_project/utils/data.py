@@ -81,6 +81,7 @@ def make_datasets(cfg: DictConfig) -> Tuple[DET_DS, DET_DS, DET_DS]:
         "data.yaml",
         None,
         cfg.model.input_size,
+        cfg.model.do_normalize,
     )
 
     test_ds = DET_DS(
@@ -91,6 +92,7 @@ def make_datasets(cfg: DictConfig) -> Tuple[DET_DS, DET_DS, DET_DS]:
         "data.yaml",
         None,
         cfg.model.input_size,
+        cfg.model.do_normalize,
     )
     val_ds = DET_DS(
         data_dir,
@@ -100,6 +102,7 @@ def make_datasets(cfg: DictConfig) -> Tuple[DET_DS, DET_DS, DET_DS]:
         "data.yaml",
         None,
         cfg.model.input_size,
+        cfg.model.do_normalize,
     )
     return train_ds_base, test_ds, val_ds
 
