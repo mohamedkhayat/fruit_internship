@@ -220,7 +220,5 @@ test_outputs
 *.onnx
 
 # RT-DETRv2 specific
-rtdetr_runs/
-*_annotated.*
-detection_results.json
 train_rtdetr_enhanced.py
+uploads/
