@@ -18,6 +18,11 @@ supported_models = {
     "detrv2_34": "PekingU/rtdetr_v2_r34vd",
     "detrv2_50": "PekingU/rtdetr_v2_r50vd",
     "detrv2_101": "PekingU/rtdetr_v2_r101vd",
+    "detrv1_18": "PekingU/rtdetr_r18vd",
+    "detrv1_34": "PekingU/rtdetr_r34vd",
+    "detrv1_50": "PekingU/rtdetr_r50vd",
+    "detrv1_50_365": "PekingU/rtdetr_r50vd_coco_o365",
+    "detrv1_101": "PekingU/rtdetr_r101vd",
 }
 
 
@@ -39,12 +44,12 @@ def get_model(
     """
 
     if cfg.model.name in supported_models.keys():
-        return get_RTDETRv2(device, n_classes, id2lbl, lbl2id, cfg)
+        return get_hf_model(device, n_classes, id2lbl, lbl2id, cfg)
     else:
         raise ValueError(f"model not supported, use one of : {supported_models}")
 
 
-def get_RTDETRv2(
+def get_hf_model(
     device: torch.device,
     n_classes: int,
     id2label: dict,
@@ -52,7 +57,7 @@ def get_RTDETRv2(
     cfg: DictConfig,
 ) -> Tuple[nn.Module, Compose, List, List, AutoImageProcessor]:
     """
-    Loads the RT-DETRv2 model along with its configuration, processor, and transformations.
+    Loads the HF model along with its configuration, processor, and transformations.
 
     Args:
         device (str): The device to load the model onto (e.g., 'cpu', 'cuda').
@@ -72,13 +77,19 @@ def get_RTDETRv2(
     checkpoint = supported_models[cfg.model.name]
     print(f"getting : {checkpoint}")
 
-    config = AutoConfig.from_pretrained(
-        checkpoint,
+    config_kwargs = dict(
         trust_remote_code=True,
         num_labels=n_classes,
         id2label=id2label,
         label2id=label2id,
-        decoder_method=cfg.decoder_method,
+    )
+
+    if hasattr(cfg.model, "decoder_method"):
+        config_kwargs["decoder_method"] = cfg.model.decoder_method
+
+    config = AutoConfig.from_pretrained(
+        checkpoint,
+        **config_kwargs,
     )
 
     model = AutoModelForObjectDetection.from_pretrained(
