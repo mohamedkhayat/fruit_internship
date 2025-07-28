@@ -52,7 +52,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                 hole_width_range=(0.05, 0.15),
                 fill=(114, 114, 114),
                 bbox_labels=box_labels,
-                p=0.2,
+                p=0.15,
             ),
             A.OneOf(
                 [
@@ -88,7 +88,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                     A.Defocus(radius=(1, 3), alias_blur=(0.1, 0.25), p=0.1),
                     A.MedianBlur(blur_limit=3, p=0.2),
                 ],
-                p=0.1,
+                p=0.05,
             ),
             A.CLAHE(clip_limit=1.5, p=0.1),
         ],
@@ -97,6 +97,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
     safe_train_transforms = A.Compose(
         [
             A.HorizontalFlip(p=0.5),
+            A.Perspective(fill=(114, 114, 114), p=0.1),
             A.OneOf(
                 [
                     A.Blur(blur_limit=3, p=0.5),
@@ -105,10 +106,8 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                 ],
                 p=0.1,
             ),
-            A.RandomBrightnessContrast(
-                brightness_limit=0.1, contrast_limit=0.1, ensure_safe_range=True, p=0.2
-            ),
-            A.CLAHE(clip_limit=1.0, p=0.1),
+            A.RandomBrightnessContrast(p=0.5),
+            A.HueSaturationValue(p=0.1),
         ],
         bbox_params=bbox_params,
     )
