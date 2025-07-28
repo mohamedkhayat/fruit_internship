@@ -21,6 +21,7 @@ from fruit_project.utils.metrics import ConfusionMatrix
 from transformers.image_transforms import center_to_corners_format
 import datetime
 
+
 def initwandb(cfg: DictConfig) -> Run:
     """
     Initializes a wandb run.
