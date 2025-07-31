@@ -43,7 +43,7 @@ class AlbumentationsMosaicDataset(Dataset):
         self.label_paths = dataset.label_paths
         self.config_dir = dataset.config_dir
         self.input_size = dataset.input_size
-        self.normalize = self.cfg.model.do_normalize
+        self.normalize = cfg.model.do_normalize
         self.mosaic_transform = A.Mosaic(
             grid_yx=(2, 2),
             target_size=(self.target_size, self.target_size),
