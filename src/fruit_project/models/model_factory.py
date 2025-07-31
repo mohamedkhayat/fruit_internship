@@ -23,6 +23,14 @@ supported_models = {
     "detrv1_50": "PekingU/rtdetr_r50vd",
     "detrv1_50_365": "PekingU/rtdetr_r50vd_coco_o365",
     "detrv1_101": "PekingU/rtdetr_r101vd",
+    # add these models
+    # "detr_50": "facebook/detr-resnet-50",
+    # "detr_101": "facebook/detr-resnet-101",
+    # "detr_50_dc5": "facebook/detr-resnet-50-dc5",
+    # "cond_detr_50": "microsoft/conditional-detr-resnet-50",
+    # "yolos_tiny": "hustvl/yolos-tiny",
+    # "yolos_small": "hustvl/yolos-small",
+    "yolos_base": "hustvl/yolos-base",
 }
 
 
@@ -92,11 +100,16 @@ def get_hf_model(
         **config_kwargs,
     )
 
+    model_kwargs = {"config": config, "ignore_mismatched_sizes": True}
+
+    if "yolos" in cfg.model.name:
+        model_kwargs.update(
+            {"attn_implementation": "sdpa", "torch_dtype": torch.float16}
+        )
+
     model = AutoModelForObjectDetection.from_pretrained(
         checkpoint,
-        trust_remote_code=True,
-        config=config,
-        ignore_mismatched_sizes=True,
+        **model_kwargs,
     )
 
     model = freeze_weights(model, cfg.freeze_backbone, cfg.partially_freeze_backbone)
