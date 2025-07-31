@@ -288,11 +288,13 @@ class Trainer:
                 self.scaler.update()
                 self.optimizer.zero_grad(set_to_none=True)
 
-            if self.ema and current_epoch >= self.cfg.warmup_epochs:
-                self.ema.update()
+                if self.ema and current_epoch >= self.cfg.warmup_epochs:
+                    self.ema.update()
 
             epoch_loss["loss"] += out.loss.item()
-            epoch_loss["class_loss"] += loss_dict["loss_vfl"].item()
+            epoch_loss["class_loss"] += loss_dict.get(
+                "loss_vfl", loss_dict.get("loss_ce", 0.0)
+            ).item()
             epoch_loss["bbox_loss"] += loss_dict["loss_bbox"].item()
             epoch_loss["giou_loss"] += loss_dict["loss_giou"].item()
 
