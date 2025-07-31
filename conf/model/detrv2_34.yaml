@@ -1,3 +1,4 @@
 name : detrv2_34
 input_size : 640
 decoder_method : default
+do_normalize : False
