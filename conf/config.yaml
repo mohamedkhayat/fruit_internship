@@ -17,13 +17,6 @@ delta : 0.001
 num_workers : 4
 download_data : False
 lr_back_factor : 30
-
-ckpt:
-  save : False
-  load:
-    model_only : False
-    all : False
-
 wait : False
 info : False
 min_area : 25.0
@@ -35,10 +28,14 @@ do_sample : True
 freeze_backbone : False
 partially_freeze_backbone : False
 upload : False
+optim : 8bit
+threshold : 0.0
+
 mosaic:
   use : False
-  prob : 0.8
-  disable_epoch : 10
+  prob : 0.0
+  disable_epoch : 15
+
 phase : 1
 eta_min_factor : 25
 lin_start_factor : 0.001
@@ -47,5 +44,8 @@ ema:
   use : True
   decay : 0.9999
 
-optim : 8bit
-threshold : 0.0
+ckpt:
+  save : False
+  load:
+    model_only : False
+    all : False
