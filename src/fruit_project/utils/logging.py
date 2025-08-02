@@ -332,7 +332,7 @@ def log_detection_confusion_matrix(
     names = class_names.copy()
 
     fig = cm_object.plot(class_names=names)
-    run.log({"val/confusion_matrix": wandb.Image(fig)})
+    run.log({"test/confusion_matrix": wandb.Image(fig)})
     plt.close(fig)
 
 
