@@ -18,8 +18,6 @@ class AlbumentationsMosaicDataset(Dataset):
     following the correct API based on official documentation.
     """
 
-    has_warned_mosaic = False
-
     def __init__(
         self,
         dataset: DET_DS,
@@ -34,6 +32,7 @@ class AlbumentationsMosaicDataset(Dataset):
         self.disable_mosaic_epochs = cfg.mosaic.disable_epoch
         self.current_epoch = current_epoch
         self.total_epochs = cfg.epochs
+
         # Copy dataset attributes
         self.processor = dataset.processor
         self.id2lbl = dataset.id2lbl
@@ -44,12 +43,13 @@ class AlbumentationsMosaicDataset(Dataset):
         self.config_dir = dataset.config_dir
         self.input_size = dataset.input_size
         self.normalize = cfg.model.do_normalize
+
         self.mosaic_transform = A.Mosaic(
             grid_yx=(2, 2),
             target_size=(self.target_size, self.target_size),
             cell_shape=(self.target_size // 2, self.target_size // 2),
             fill=(114, 114, 114),
-            center_range=(0.4, 0.6),
+            center_range=(0.3, 0.7),
             metadata_key="mosaic_metadata",
             p=1.0,
         )
@@ -62,6 +62,7 @@ class AlbumentationsMosaicDataset(Dataset):
             self.mosaic_transform,
             A.Resize(self.target_size, self.target_size),
         ]
+
         if self.hard_transforms:
             mosaic_pipeline.extend(self.hard_transforms.transforms)
 
@@ -86,14 +87,8 @@ class AlbumentationsMosaicDataset(Dataset):
     def should_apply_mosaic(self) -> bool:
         """Determine if mosaic should be applied based on epoch and probability."""
         if self.current_epoch >= (self.total_epochs - self.disable_mosaic_epochs):
-            if not AlbumentationsMosaicDataset.has_warned_mosaic:  # and (
-                #     (torch.utils.data.get_worker_info() is None)
-                #     or (torch.utils.data.get_worker_info().id == 0)
-                # ):
-                AlbumentationsMosaicDataset.has_warned_mosaic = True
-                # tqdm.write("switched off mosaic")
-                print("Switched off mosaic")
             return False
+
         return np.random.rand() < self.mosaic_prob
 
     def _validate_and_clip_bbox(
@@ -129,9 +124,10 @@ class AlbumentationsMosaicDataset(Dataset):
 
             if len(boxes) > 0:
                 for box, label in zip(boxes, labels):
-                    clipped_box = self._validate_and_clip_bbox(
-                        box, img_width, img_height
-                    )
+                    # clipped_box = self._validate_and_clip_bbox(
+                    #     box, img_width, img_height
+                    # )
+                    clipped_box = box
                     if clipped_box is not None:
                         coco_boxes.append(clipped_box)
                         valid_labels.append(int(label))
@@ -152,7 +148,8 @@ class AlbumentationsMosaicDataset(Dataset):
 
         if len(primary_boxes) > 0:
             for box, label in zip(primary_boxes, primary_labels):
-                clipped_box = self._validate_and_clip_bbox(box, img_width, img_height)
+                # clipped_box = self._validate_and_clip_bbox(box, img_width, img_height)
+                clipped_box = box
                 if clipped_box is not None:
                     primary_coco_boxes.append(clipped_box)
                     valid_primary_labels.append(int(label))
@@ -184,7 +181,8 @@ class AlbumentationsMosaicDataset(Dataset):
 
         if len(boxes) > 0:
             for box, label in zip(boxes, labels):
-                clipped_box = self._validate_and_clip_bbox(box, img_width, img_height)
+                # clipped_box = self._validate_and_clip_bbox(box, img_width, img_height)
+                clipped_box = box
                 if clipped_box is not None:
                     coco_boxes.append(clipped_box)
                     valid_labels.append(int(label))

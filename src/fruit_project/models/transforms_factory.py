@@ -25,7 +25,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                 height=cfg.model.input_size,
                 width=cfg.model.input_size,
                 erosion_rate=0.0,
-                p=0.3,
+                p=0.4,
             ),
             A.HorizontalFlip(p=0.5),
             A.OneOf(
@@ -44,7 +44,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                         p=1.0,
                     ),
                 ],
-                p=0.3,
+                p=0.4,
             ),
             A.ConstrainedCoarseDropout(
                 num_holes_range=(1, 2),
@@ -65,21 +65,21 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                     A.RandomGamma(gamma_limit=(80, 120), p=1.0),
                     A.RandomToneCurve(p=1.0),
                 ],
-                p=0.3,
+                p=0.35,
             ),
             A.OneOf(
                 [
                     A.HueSaturationValue(
-                        hue_shift_limit=20,
-                        sat_shift_limit=30,
-                        val_shift_limit=20,
+                        hue_shift_limit=10,
+                        sat_shift_limit=15,
+                        val_shift_limit=10,
                         p=1.0,
                     ),
                     A.RGBShift(
-                        r_shift_limit=15, g_shift_limit=15, b_shift_limit=15, p=1.0
+                        r_shift_limit=10, g_shift_limit=10, b_shift_limit=10, p=1.0
                     ),
                 ],
-                p=0.3,
+                p=0.35,
             ),
             A.OneOf(
                 [
@@ -90,14 +90,16 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                 ],
                 p=0.05,
             ),
-            A.CLAHE(clip_limit=1.5, p=0.1),
+            A.CLAHE(clip_limit=1.5, p=0.2),
         ],
         bbox_params=bbox_params,
     )
     safe_train_transforms = A.Compose(
         [
             A.HorizontalFlip(p=0.5),
-            A.Perspective(fill=(114, 114, 114), p=0.1),
+            A.Perspective(
+                scale=(0.02, 0.05), fit_output=True, fill=(114, 114, 114), p=0.1
+            ),
             A.OneOf(
                 [
                     A.Blur(blur_limit=3, p=0.5),
@@ -124,7 +126,7 @@ def get_bbox_params(cfg):
     return A.BboxParams(
         format="coco",
         label_fields=["labels"],
-        clip=False,
+        clip=True,
         filter_invalid_bboxes=True,
         min_visibility=cfg.min_viz,
         min_area=cfg.min_area,
