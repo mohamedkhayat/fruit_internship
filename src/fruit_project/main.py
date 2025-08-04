@@ -54,7 +54,14 @@ def main(cfg: DictConfig):
 
     log_images(run, test_sample, test_ds.id2lbl, (3, 3), mean, std)
     log_transforms(
-        run, next(iter(train_dl)), (3, 3), train_ds.id2lbl, transforms, mean, std
+        run,
+        next(iter(train_dl)),
+        (3, 3),
+        train_ds.id2lbl,
+        transforms,
+        mean,
+        std,
+        cfg.model.do_normalize,
     )
 
     trainer = Trainer(
