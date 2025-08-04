@@ -1,12 +1,12 @@
 defaults:
-  - model: detrv2_18
+  - model: detrv2_50
   - _self_
 
 effective_batch_size: 64
-step_batch_size : 8
+step_batch_size : 4
 epochs: 30
 lr: 1e-4
-weight_decay: 1e-4
+weight_decay: 5e-4
 warmup_epochs: 5
 root_dir: Fruit_dataset
 log : True
@@ -16,7 +16,7 @@ patience : 15
 delta : 0.001
 num_workers : 4
 download_data : False
-lr_back_factor : 30
+lr_back_factor : 10
 wait : False
 info : False
 min_area : 25.0
