@@ -28,8 +28,8 @@ supported_models = {
     # "detr_101": "facebook/detr-resnet-101",
     # "detr_50_dc5": "facebook/detr-resnet-50-dc5",
     # "cond_detr_50": "microsoft/conditional-detr-resnet-50",
-    # "yolos_tiny": "hustvl/yolos-tiny",
-    # "yolos_small": "hustvl/yolos-small",
+    "yolos_tiny": "hustvl/yolos-tiny",
+    "yolos_small": "hustvl/yolos-small",
     "yolos_base": "hustvl/yolos-base",
 }
 

@@ -1,0 +1,4 @@
+name : yolos_tiny
+input_size : 640
+do_normalize : True
+grad_max_norm : 1.0
