@@ -104,7 +104,7 @@ def get_hf_model(
 
     if "yolos" in cfg.model.name:
         model_kwargs.update(
-            {"attn_implementation": "sdpa", "torch_dtype": torch.float16}
+            {"attn_implementation": "sdpa", "torch_dtype": torch.float32}
         )
 
     model = AutoModelForObjectDetection.from_pretrained(
