@@ -165,6 +165,7 @@ class DET_DS(Dataset):
                 return_tensors="pt",
                 do_pad=False,
                 do_normalize=self.normalize,
+                size={"height": self.input_size, "width": self.input_size},
             )
             result = {k: v[0] for k, v in result.items()}
             return result

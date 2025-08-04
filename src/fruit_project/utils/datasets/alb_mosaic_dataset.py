@@ -229,8 +229,9 @@ class AlbumentationsMosaicDataset(Dataset):
                     images=img,
                     annotations=target,
                     return_tensors="pt",
-                    do_pad=False,
                     do_normalize=self.normalize,
+                    size={"height": self.input_size, "width": self.input_size},
+                    do_pad=False,
                 )
                 result = {k: v[0] for k, v in result.items()}
                 return result
