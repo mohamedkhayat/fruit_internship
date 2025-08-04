@@ -139,7 +139,7 @@ class Trainer:
         backbone_params = [
             p
             for n, p in self.model.named_parameters()
-            if n.startswith("model.backbone") and p.requires_grad
+            if n.startswith("model.backbone") or n.startswith("vit") and p.requires_grad
         ]
 
         backbone_param_ids = {id(p) for p in backbone_params}
@@ -282,7 +282,9 @@ class Trainer:
 
             if (batch_idx + 1) % self.accum_steps == 0:
                 self.scaler.unscale_(self.optimizer)
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.1)
+                torch.nn.utils.clip_grad_norm_(
+                    self.model.parameters(), max_norm=self.cfg.model.grad_max_norm
+                )
                 self.scaler.step(self.optimizer)
                 self.scheduler.step()
                 self.scaler.update()
