@@ -288,6 +288,12 @@ class MAPEvaluator:
         prec = metrics_dict["precision"]  # T×R×K×A×M
         classes_present = metrics_dict["classes"].to(self.device).long()
 
+        # Debugging
+        K = len(self.id2label)
+
+        valid_mask = (classes_present >= 0) & (classes_present < K)
+        classes_present_filtered = classes_present[valid_mask]
+
         # --- slice the tensor ---
         iou_idx = self.map_50_metric.iou_thresholds.index(0.5)
         prec_curves = prec[iou_idx, :, :, 0, -1].to(self.device)  # R×K
@@ -303,16 +309,25 @@ class MAPEvaluator:
             * rec_vec[:, None]
             / (prec_curves + rec_vec[:, None] + 1e-16)
         )
-        best_thr = torch.argmax(f1, dim=0)
-        opt_p = prec_curves[best_thr, torch.arange(prec_curves.size(1))]
-        opt_r = rec_vec[best_thr]
 
-        # --- place into full-length tensors, zero for missing classes ---
-        K = len(self.id2label)
-        P = torch.zeros(K, dtype=opt_p.dtype, device=self.device)
-        R = torch.zeros(K, dtype=opt_p.dtype, device=self.device)
-        P[classes_present.long()] = opt_p
-        R[classes_present.long()] = opt_r
+        best_thr = torch.argmax(f1, dim=0)
+
+        if len(classes_present_filtered) > 0:
+            opt_p = prec_curves[
+                best_thr[classes_present_filtered], classes_present_filtered
+            ]
+            opt_r = rec_vec[best_thr[classes_present_filtered]]
+        else:
+            opt_p = torch.empty(0, dtype=prec_curves.dtype, device=self.device)
+            opt_r = torch.empty(0, dtype=rec_vec.dtype, device=self.device)
+
+        P = torch.zeros(K, dtype=prec_curves.dtype, device=self.device)
+        R = torch.zeros(K, dtype=rec_vec.dtype, device=self.device)
+
+        if len(classes_present_filtered) > 0:
+            P[classes_present_filtered] = opt_p
+            R[classes_present_filtered] = opt_r
+
         return P, R
 
     def get_averaged_precision_recall_ultralytics_style(
@@ -321,29 +336,25 @@ class MAPEvaluator:
         optimal_recalls: torch.Tensor,
         present_classes: torch.Tensor,
     ):
-        """
-        Calculate overall precision and recall by averaging across all classes that were present,
-        following Ultralytics' approach.
+        """Calculate overall precision and recall..."""
 
-        Args:
-            optimal_precisions: Per-class optimal precision values
-            optimal_recalls: Per-class optimal recall values
-            present_classes: Classes that were actually present in the evaluation
-
-        Returns:
-            tuple: (overall_precision, overall_recall)
-        """
         if len(present_classes) == 0:
+            print("No present classes, returning 0.0, 0.0")
             return 0.0, 0.0
 
-        # Only average over classes that were actually present
         present_class_ids = present_classes.long()
 
-        # Get the precision/recall values for classes that were present
+        if present_class_ids.max() >= optimal_precisions.shape[0]:
+            valid_mask = present_class_ids < optimal_precisions.shape[0]
+            present_class_ids = present_class_ids[valid_mask]
+
+        if len(present_class_ids) == 0:
+            print("No valid present classes after filtering, returning 0.0, 0.0")
+            return 0.0, 0.0
+
         present_precisions = optimal_precisions[present_class_ids]
         present_recalls = optimal_recalls[present_class_ids]
 
-        # Calculate the mean (this matches Ultralytics' approach)
         overall_precision = present_precisions.mean().item()
         overall_recall = present_recalls.mean().item()
 
