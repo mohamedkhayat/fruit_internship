@@ -380,7 +380,9 @@ class Trainer:
             loss_dict = out.loss_dict
 
             epoch_loss["loss"] += batch_loss.item()
-            epoch_loss["class_loss"] += loss_dict["loss_vfl"].item()
+            epoch_loss["class_loss"] += loss_dict.get(
+                "loss_vfl", loss_dict.get("loss_ce", 0.0)
+            ).item()
             epoch_loss["bbox_loss"] += loss_dict["loss_bbox"].item()
             epoch_loss["giou_loss"] += loss_dict["loss_giou"].item()
 
