@@ -260,7 +260,12 @@ class Trainer:
         self.optimizer.zero_grad(set_to_none=True)
 
         epoch_loss = {"loss": 0.0}
-        epoch_loss.update({k: 0.0 for k in ["class_loss", "bbox_loss", "giou_loss"]})
+        epoch_loss.update(
+            {
+                k: 0.0
+                for k in ["class_loss", "bbox_loss", "giou_loss", "cardinality_error"]
+            }
+        )
 
         progress_bar = tqdm(
             self.train_dl,
@@ -295,10 +300,13 @@ class Trainer:
 
             epoch_loss["loss"] += out.loss.item()
             epoch_loss["class_loss"] += loss_dict.get(
-                "loss_vfl", loss_dict.get("loss_ce", 0.0)
+                "loss_vfl", loss_dict.get("loss_ce", torch.tensor(0.0))
             ).item()
             epoch_loss["bbox_loss"] += loss_dict["loss_bbox"].item()
             epoch_loss["giou_loss"] += loss_dict["loss_giou"].item()
+            epoch_loss["cardinality_error"] += loss_dict.get(
+                "cardinality_error", torch.tensor(0.0)
+            ).item()
 
             current_avg_loss = epoch_loss["loss"] / (batch_idx + 1)
             progress_bar.set_postfix(
@@ -355,7 +363,12 @@ class Trainer:
         self.map_evaluator.map_metric.reset()
         self.map_evaluator.map_50_metric.reset()
         epoch_loss = {"loss": 0.0}
-        epoch_loss.update({k: 0.0 for k in ["class_loss", "bbox_loss", "giou_loss"]})
+        epoch_loss.update(
+            {
+                k: 0.0
+                for k in ["class_loss", "bbox_loss", "giou_loss", "cardinality_error"]
+            }
+        )
 
         if calc_cm:
             cm = ConfusionMatrix(
@@ -381,10 +394,13 @@ class Trainer:
 
             epoch_loss["loss"] += batch_loss.item()
             epoch_loss["class_loss"] += loss_dict.get(
-                "loss_vfl", loss_dict.get("loss_ce", 0.0)
+                "loss_vfl", loss_dict.get("loss_ce", torch.tensor(0.0))
             ).item()
             epoch_loss["bbox_loss"] += loss_dict["loss_bbox"].item()
             epoch_loss["giou_loss"] += loss_dict["loss_giou"].item()
+            epoch_loss["cardinality_error"] += loss_dict.get(
+                "cardinality_error", torch.tensor(0.0)
+            ).item()
 
             batch_targets = batch["labels"]
             image_sizes = self.map_evaluator.collect_image_sizes(batch_targets)
