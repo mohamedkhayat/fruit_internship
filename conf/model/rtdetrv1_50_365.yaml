@@ -1,4 +1,4 @@
-name : detrv1_50_365
+name : rtdetrv1_50_365
 input_size : 640
 do_normalize : True
 grad_max_norm : 0.1

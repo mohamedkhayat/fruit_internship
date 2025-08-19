@@ -1,4 +1,4 @@
-name : detrv2_50
+name : rtdetrv2_18
 input_size : 640
 decoder_method : default
 do_normalize : False

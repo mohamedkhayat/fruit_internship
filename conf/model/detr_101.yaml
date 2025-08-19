@@ -1,4 +1,4 @@
-name : detrv1_18
+name : detr_101
 input_size : 640
 do_normalize : True
 grad_max_norm : 0.1
