@@ -23,6 +23,7 @@ dependencies = [
     "wandb",
     "torchmetrics[detection]",
     "PyYAML==6.0.2",
+    "timm==1.0.19",
 ]
 
 [project.optional-dependencies]
