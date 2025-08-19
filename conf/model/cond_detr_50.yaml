@@ -1,0 +1,4 @@
+name : cond_detr_50.yaml
+input_size : 640
+do_normalize : True
+grad_max_norm : 0.1
