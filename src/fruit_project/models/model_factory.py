@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from fruit_project.models.transforms_factory import get_transforms
 from omegaconf import DictConfig
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 from albumentations import Compose
 from transformers import (
     AutoImageProcessor,
@@ -14,19 +14,19 @@ from transformers import (
 )
 
 supported_models = {
-    "detrv2_18": "PekingU/rtdetr_v2_r18vd",
-    "detrv2_34": "PekingU/rtdetr_v2_r34vd",
-    "detrv2_50": "PekingU/rtdetr_v2_r50vd",
-    "detrv2_101": "PekingU/rtdetr_v2_r101vd",
-    "detrv1_18": "PekingU/rtdetr_r18vd",
-    "detrv1_34": "PekingU/rtdetr_r34vd",
-    "detrv1_50": "PekingU/rtdetr_r50vd",
-    "detrv1_50_365": "PekingU/rtdetr_r50vd_coco_o365",
-    "detrv1_101": "PekingU/rtdetr_r101vd",
+    "rtdetrv2_18": "PekingU/rtdetr_v2_r18vd",
+    "rtdetrv2_34": "PekingU/rtdetr_v2_r34vd",
+    "rtdetrv2_50": "PekingU/rtdetr_v2_r50vd",
+    "rtdetrv2_101": "PekingU/rtdetr_v2_r101vd",
+    "rtdetrv1_18": "PekingU/rtdetr_r18vd",
+    "rtdetrv1_34": "PekingU/rtdetr_r34vd",
+    "rtdetrv1_50": "PekingU/rtdetr_r50vd",
+    "rtdetrv1_50_365": "PekingU/rtdetr_r50vd_coco_o365",
+    "rtdetrv1_101": "PekingU/rtdetr_r101vd",
     # add these models
-    # "detr_50": "facebook/detr-resnet-50",
-    # "detr_101": "facebook/detr-resnet-101",
-    # "detr_50_dc5": "facebook/detr-resnet-50-dc5",
+    "detr_50": "facebook/detr-resnet-50",
+    "detr_101": "facebook/detr-resnet-101",
+    "detr_50_dc5": "facebook/detr-resnet-50-dc5",
     # "cond_detr_50": "microsoft/conditional-detr-resnet-50",
     "yolos_tiny": "hustvl/yolos-tiny",
     "yolos_small": "hustvl/yolos-small",
@@ -85,7 +85,7 @@ def get_hf_model(
     checkpoint = supported_models[cfg.model.name]
     print(f"getting : {checkpoint}")
 
-    config_kwargs = dict(
+    config_kwargs: Dict[str, Any] = dict(
         trust_remote_code=True,
         num_labels=n_classes,
         id2label=id2label,
@@ -100,12 +100,21 @@ def get_hf_model(
         **config_kwargs,
     )
 
-    model_kwargs = {"config": config, "ignore_mismatched_sizes": True}
+    processor_kwargs: Dict[str, Any] = {
+        "trust_remote_code": True,
+        "use_fast": True,
+    }
+    model_kwargs: Dict[str, Any] = {"config": config, "ignore_mismatched_sizes": True}
 
     if "yolos" in cfg.model.name:
         model_kwargs.update(
             {"attn_implementation": "sdpa", "torch_dtype": torch.float32}
         )
+
+    if "facebook" in checkpoint:
+        model_kwargs.update({"revision": "no_timm"})
+
+        processor_kwargs.update({"revision": "no_timm"})
 
     model = AutoModelForObjectDetection.from_pretrained(
         checkpoint,
@@ -114,9 +123,7 @@ def get_hf_model(
 
     model = freeze_weights(model, cfg.freeze_backbone, cfg.partially_freeze_backbone)
 
-    processor = AutoImageProcessor.from_pretrained(
-        checkpoint, trust_remote_code=True, use_fast=True
-    )
+    processor = AutoImageProcessor.from_pretrained(checkpoint, **processor_kwargs)
 
     transforms = get_transforms(cfg, id2label)
 
