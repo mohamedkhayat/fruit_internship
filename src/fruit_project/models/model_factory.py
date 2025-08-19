@@ -23,14 +23,15 @@ supported_models = {
     "rtdetrv1_50": "PekingU/rtdetr_r50vd",
     "rtdetrv1_50_365": "PekingU/rtdetr_r50vd_coco_o365",
     "rtdetrv1_101": "PekingU/rtdetr_r101vd",
-    # add these models
     "detr_50": "facebook/detr-resnet-50",
     "detr_101": "facebook/detr-resnet-101",
     "detr_50_dc5": "facebook/detr-resnet-50-dc5",
-    # "cond_detr_50": "microsoft/conditional-detr-resnet-50",
+    "cond_detr_50": "microsoft/conditional-detr-resnet-50",
     "yolos_tiny": "hustvl/yolos-tiny",
     "yolos_small": "hustvl/yolos-small",
     "yolos_base": "hustvl/yolos-base",
+    # add these models
+    "defor_detr": "SenseTime/deformable-detr",
 }
 
 
@@ -113,7 +114,6 @@ def get_hf_model(
 
     if "facebook" in checkpoint:
         model_kwargs.update({"revision": "no_timm"})
-
         processor_kwargs.update({"revision": "no_timm"})
 
     model = AutoModelForObjectDetection.from_pretrained(
