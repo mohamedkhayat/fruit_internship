@@ -163,7 +163,7 @@ class DET_DS(Dataset):
                 images=img,
                 annotations=target,
                 return_tensors="pt",
-                do_pad=False,
+                do_pad=True,
                 do_normalize=self.normalize,
                 size={"height": self.input_size, "width": self.input_size},
             )
