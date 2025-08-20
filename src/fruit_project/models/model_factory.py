@@ -30,8 +30,8 @@ supported_models = {
     "yolos_tiny": "hustvl/yolos-tiny",
     "yolos_small": "hustvl/yolos-small",
     "yolos_base": "hustvl/yolos-base",
-    # add these models
     "defor_detr": "SenseTime/deformable-detr",
+    # add these models
 }
 
 
@@ -55,7 +55,7 @@ def get_model(
     if cfg.model.name in supported_models.keys():
         return get_hf_model(device, n_classes, id2lbl, lbl2id, cfg)
     else:
-        raise ValueError(f"model not supported, use one of : {supported_models}")
+        raise ValueError(f"model not supported, use one of : {supported_models.keys()}")
 
 
 def get_hf_model(
@@ -104,6 +104,10 @@ def get_hf_model(
     processor_kwargs: Dict[str, Any] = {
         "trust_remote_code": True,
         "use_fast": True,
+        "do_resize": True,
+        "do_pad": True,
+        "size": {"max_height": cfg.model.input_size, "max_width": cfg.model.input_size},
+        "pad_size": {"height": cfg.model.input_size, "width": cfg.model.input_size},
     }
     model_kwargs: Dict[str, Any] = {"config": config, "ignore_mismatched_sizes": True}
 
