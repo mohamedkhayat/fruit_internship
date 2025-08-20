@@ -21,11 +21,14 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
     box_labels = [k for k in id2label.keys()]
     hard_train_transforms = A.Compose(
         [
-            A.RandomSizedBBoxSafeCrop(
-                height=cfg.model.input_size,
-                width=cfg.model.input_size,
-                erosion_rate=0.0,
-                p=0.4,
+            A.Compose(
+                [
+                    A.SmallestMaxSize(max_size=cfg.model.input_size, p=1.0),
+                    A.RandomSizedBBoxSafeCrop(
+                        height=cfg.model.input_size, width=cfg.model.input_size, p=1.0
+                    ),
+                ],
+                p=0.2,
             ),
             A.HorizontalFlip(p=0.5),
             A.OneOf(
@@ -96,6 +99,15 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
     )
     safe_train_transforms = A.Compose(
         [
+            A.Compose(
+                [
+                    A.SmallestMaxSize(max_size=cfg.model.input_size, p=1.0),
+                    A.RandomSizedBBoxSafeCrop(
+                        height=cfg.model.input_size, width=cfg.model.input_size, p=1.0
+                    ),
+                ],
+                p=0.2,
+            ),
             A.HorizontalFlip(p=0.5),
             A.Perspective(
                 scale=(0.02, 0.05), fit_output=True, fill=(114, 114, 114), p=0.1
@@ -108,7 +120,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                 ],
                 p=0.1,
             ),
-            A.RandomBrightnessContrast(p=0.5),
+            A.RandomBrightnessContrast(p=0.2),
             A.HueSaturationValue(p=0.1),
         ],
         bbox_params=bbox_params,
