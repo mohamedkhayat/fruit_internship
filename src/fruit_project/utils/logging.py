@@ -99,7 +99,6 @@ def log_images(
 
     for i in range(n):
         img = images[i]
-        # img = unnormalize(img, mean, std).squeeze(0)
         tgt = targets[i]
 
         img_uint8 = (img * 255).to(torch.uint8)
