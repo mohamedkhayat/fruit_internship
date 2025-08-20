@@ -44,7 +44,6 @@ def main(cfg: DictConfig):
         train_ds.id2lbl,
         train_ds.lbl2id,
     )
-
     if cfg.log:
         run.watch(model)
 
