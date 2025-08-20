@@ -184,7 +184,7 @@ def make_dataloaders(
     print("making dataloaders")
 
     worker_init = functools.partial(seed_worker, base_seed=cfg.seed)
-    collate = functools.partial(collate_fn)
+    collate = functools.partial(collate_fn, processor=processor)
 
     for ds in [train_ds_base, test_ds, val_ds]:
         ds.processor = processor
@@ -268,7 +268,7 @@ def get_labels_and_mappings(
     return labels, id2lbl, lbl2id
 
 
-def collate_fn(batch: BatchEncoding) -> Dict:
+def collate_fn(batch: BatchEncoding, processor) -> Dict:
     """
     Collates a batch of data for the dataloader.
 
@@ -278,9 +278,12 @@ def collate_fn(batch: BatchEncoding) -> Dict:
     Returns:
         Tuple[BatchEncoding, List]: Processed batch and list of targets.
     """
+
     data = {}
     data["pixel_values"] = torch.stack([x["pixel_values"] for x in batch])
     data["labels"] = [x["labels"] for x in batch]
+    if "pixel_mask" in batch[0]:
+        data["pixel_mask"] = torch.stack([x["pixel_mask"] for x in batch])
     return data
 
 
