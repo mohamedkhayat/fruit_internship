@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2025 Mohamed Khayat
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import gc
 import os
 from typing import List, Optional, Tuple, Dict, Any
 import torch
@@ -439,6 +440,8 @@ class Trainer:
             if batch_idx % 50 == 0:
                 torch.cuda.empty_cache()
 
+            del batch_preds_processed, batch_targets_processed
+
         tqdm.write("Computing mAP metrics")
         map_50_95_metrics = self.map_evaluator.map_metric.compute()
         val_map = map_50_95_metrics.get("map", 0.0)
@@ -486,6 +489,9 @@ class Trainer:
                     f"\t\t{class_name:<15}: {val_metrics['map@50_per_class'][i].item():.4f}"
                 )
 
+        del map_50_95_metrics, map_50_metrics
+        del optimal_precisions, optimal_recalls, present_classes
+
         return epoch_loss, val_metrics, cm
 
     def fit(self) -> None:
@@ -515,6 +521,10 @@ class Trainer:
             val_loss, val_metrics, _ = self.eval(self.val_dl, epoch)
 
             epoch_pbar.update(1)
+
+            if epoch % 10 == 0:
+                gc.collect()
+                torch.cuda.empty_cache()
 
             best_val_map = max(val_metrics["map@50"], best_val_map)
 
