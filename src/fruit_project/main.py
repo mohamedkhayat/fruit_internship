@@ -51,7 +51,9 @@ def main(cfg: DictConfig):
         cfg, train_ds, test_ds, val_ds, generator, processor, transforms
     )
 
-    log_images(run, test_sample, test_ds.id2lbl, (3, 3), mean, std)
+    log_images(
+        run, test_sample, test_ds.id2lbl, (3, 3), mean, std, cfg.model.do_normalize
+    )
     log_transforms(
         run,
         next(iter(train_dl)),

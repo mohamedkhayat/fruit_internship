@@ -74,6 +74,7 @@ def log_images(
     grid_size: Tuple[int, int] = (3, 3),
     mean: Optional[torch.Tensor] = None,
     std: Optional[torch.Tensor] = None,
+    do_normalize: bool = False,
 ) -> None:
     """
     Logs a grid of images with their bounding boxes to wandb.
@@ -99,6 +100,10 @@ def log_images(
 
     for i in range(n):
         img = images[i]
+
+        if do_normalize:
+            img = unnormalize(img, mean, std).squeeze(0)
+
         tgt = targets[i]
 
         img_uint8 = (img * 255).to(torch.uint8)
