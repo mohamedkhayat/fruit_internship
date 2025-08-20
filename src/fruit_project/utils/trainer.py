@@ -184,7 +184,7 @@ class Trainer:
 
         return optimizer
 
-    def move_labels_to_device(self, batch: BatchEncoding) -> BatchEncoding:
+    def move_batch_to_device(self, batch: BatchEncoding) -> BatchEncoding:
         """
         Moves label tensors within a batch to the specified device.
 
@@ -194,6 +194,9 @@ class Trainer:
         Returns:
             BatchEncoding: The batch with labels moved to the device.
         """
+
+        batch = {k: v.to(self.device) if k != "labels" else v for k, v in batch.items()}
+
         for lab in batch["labels"]:
             for k, v in lab.items():
                 lab[k] = v.to(self.device)
@@ -275,8 +278,7 @@ class Trainer:
         )
 
         for batch_idx, batch in enumerate(progress_bar):
-            batch["pixel_values"] = batch["pixel_values"].to(self.device)
-            batch = self.move_labels_to_device(batch)
+            batch = self.move_batch_to_device(batch)
 
             with torch.autocast(device_type=self.device.type, dtype=torch.float16):
                 out = self.model(**batch)
@@ -315,6 +317,7 @@ class Trainer:
                     "Batch": f"{batch_idx + 1}/{len(self.train_dl)}",
                 }
             )
+
             if batch_idx % 50 == 0:
                 torch.cuda.empty_cache()
 
@@ -340,6 +343,7 @@ class Trainer:
             tqdm.write("evaluating with regular weights")
             return self._run_eval(val_dl, current_epoch, calc_cm)
 
+    @torch.no_grad()
     def _run_eval(
         self, val_dl: DataLoader, current_epoch: int, calc_cm: bool = False
     ) -> Tuple[dict[str, float], dict[str, Any], Optional[ConfusionMatrix]]:
@@ -385,8 +389,7 @@ class Trainer:
         )
 
         for batch_idx, batch in enumerate(progress_bar):
-            batch["pixel_values"] = batch["pixel_values"].to(self.device)
-            batch = self.move_labels_to_device(batch)
+            batch = self.move_batch_to_device(batch)
 
             out = self.model(**batch)
             batch_loss = out.loss
@@ -427,10 +430,14 @@ class Trainer:
                     "Batch": f"{batch_idx + 1}/{len(val_dl)}",
                 }
             )
+
             if calc_cm and cm:
                 preds = self.nested_to_cpu(batch_preds_processed)
                 targets_for_cm = self.format_targets_for_cm(batch["labels"])
                 cm.update(preds, targets_for_cm)
+
+            if batch_idx % 50 == 0:
+                torch.cuda.empty_cache()
 
         tqdm.write("Computing mAP metrics")
         map_50_95_metrics = self.map_evaluator.map_metric.compute()
