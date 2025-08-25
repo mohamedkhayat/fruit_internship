@@ -23,6 +23,7 @@ supported_models = {
     "rtdetrv1_50": "PekingU/rtdetr_r50vd",
     "rtdetrv1_50_365": "PekingU/rtdetr_r50vd_coco_o365",
     "rtdetrv1_101": "PekingU/rtdetr_r101vd",
+    "rtdetrv1_101_365": "PekingU/rtdetr_r101vd_coco_o365",
     "detr_50": "facebook/detr-resnet-50",
     "detr_101": "facebook/detr-resnet-101",
     "detr_50_dc5": "facebook/detr-resnet-50-dc5",
@@ -31,6 +32,7 @@ supported_models = {
     "yolos_small": "hustvl/yolos-small",
     "yolos_base": "hustvl/yolos-base",
     "defor_detr": "SenseTime/deformable-detr",
+    "dab_detr_50": "IDEA-Research/dab-detr-resnet-50",
     # add these models
 }
 
@@ -100,12 +102,12 @@ def get_hf_model(
         checkpoint,
         **config_kwargs,
     )
-
     processor_kwargs: Dict[str, Any] = {
         "trust_remote_code": True,
         "use_fast": True,
         "do_resize": True,
         "do_pad": True,
+        "do_normalize": cfg.model.do_normalize,
         "size": {"max_height": cfg.model.input_size, "max_width": cfg.model.input_size},
         "pad_size": {"height": cfg.model.input_size, "width": cfg.model.input_size},
     }
@@ -115,10 +117,6 @@ def get_hf_model(
         model_kwargs.update(
             {"attn_implementation": "sdpa", "torch_dtype": torch.float32}
         )
-
-    if "facebook" in checkpoint:
-        model_kwargs.update({"revision": "no_timm"})
-        processor_kwargs.update({"revision": "no_timm"})
 
     model = AutoModelForObjectDetection.from_pretrained(
         checkpoint,
