@@ -31,23 +31,11 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                 p=0.2,
             ),
             A.HorizontalFlip(p=0.5),
-            A.OneOf(
-                [
-                    A.Affine(
-                        scale=(0.8, 1.2),
-                        translate_percent={"x": (-0.02, 0.02), "y": (-0.02, 0.02)},
-                        rotate=(-5, 5),
-                        fill=(114, 114, 114),
-                        p=0.5,
-                    ),
-                    A.Perspective(
-                        scale=(0.02, 0.05),
-                        fit_output=True,
-                        fill=(114, 114, 114),
-                        p=0.5,
-                    ),
-                ],
-                p=0.4,
+            A.Perspective(
+                scale=(0.02, 0.05),
+                fit_output=True,
+                fill=(114, 114, 114),
+                p=0.15,
             ),
             A.ConstrainedCoarseDropout(
                 num_holes_range=(1, 2),
@@ -55,17 +43,17 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                 hole_width_range=(0.05, 0.15),
                 fill=(114, 114, 114),
                 bbox_labels=box_labels,
-                p=0.2,
+                p=0.05,
             ),
             A.OneOf(
                 [
                     A.RandomBrightnessContrast(
-                        brightness_limit=0.2,
-                        contrast_limit=0.2,
+                        brightness_limit=0.1,
+                        contrast_limit=0.1,
                         ensure_safe_range=True,
                         p=0.5,
                     ),
-                    A.RandomGamma(gamma_limit=(80, 120), p=0.5),
+                    A.RandomGamma(gamma_limit=(60, 100), p=0.5),
                     A.RandomToneCurve(p=0.5),
                 ],
                 p=0.4,
@@ -73,16 +61,16 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
             A.OneOf(
                 [
                     A.HueSaturationValue(
-                        hue_shift_limit=20,
-                        sat_shift_limit=30,
-                        val_shift_limit=20,
+                        hue_shift_limit=15,
+                        sat_shift_limit=25,
+                        val_shift_limit=15,
                         p=0.5,
                     ),
                     A.RGBShift(
                         r_shift_limit=10, g_shift_limit=10, b_shift_limit=10, p=0.5
                     ),
                 ],
-                p=0.4,
+                p=0.3,
             ),
             A.OneOf(
                 [
@@ -93,7 +81,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                 ],
                 p=0.1,
             ),
-            A.CLAHE(clip_limit=1.5, p=0.3),
+            A.CLAHE(clip_limit=1.5, p=0.15),
         ],
         bbox_params=bbox_params,
     )
