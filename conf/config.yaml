@@ -6,7 +6,7 @@ effective_batch_size: 64
 step_batch_size : 4
 epochs: 30
 lr: 1e-4
-weight_decay: 5e-4
+weight_decay: 1e-4
 warmup_epochs: 5
 root_dir: Fruit_dataset
 log : True
