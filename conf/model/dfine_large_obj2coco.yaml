@@ -1,0 +1,4 @@
+name : dfine_large_obj2coco
+input_size : 640
+do_normalize : True
+grad_max_norm : 0.1

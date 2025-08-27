@@ -33,7 +33,12 @@ supported_models = {
     "yolos_base": "hustvl/yolos-base",
     "defor_detr": "SenseTime/deformable-detr",
     "dab_detr_50": "IDEA-Research/dab-detr-resnet-50",
-    # add these models
+    "dfine_large_coco": "ustc-community/dfine-large-coco",
+    "dfine_xlarge_coco": "ustc-community/dfine-xlarge-coco",
+    "dfine_large_obj365": "ustc-community/dfine-large-obj365",
+    "dfine_xlarge_obj365": "ustc-community/dfine-xlarge-obj365",
+    "dfine_large_obj2coco": "ustc-community/dfine-large-obj2coco-e25",
+    "dfine_xlarge_obj2coco": "ustc-community/dfine-xlarge-obj2coco",
 }
 
 
@@ -57,7 +62,9 @@ def get_model(
     if cfg.model.name in supported_models.keys():
         return get_hf_model(device, n_classes, id2lbl, lbl2id, cfg)
     else:
-        raise ValueError(f"model not supported, use one of : {supported_models.keys()}")
+        raise ValueError(
+            f"model : {cfg.model.name} not supported, use one of : {supported_models.keys()}"
+        )
 
 
 def get_hf_model(
