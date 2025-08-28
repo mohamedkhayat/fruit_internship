@@ -44,7 +44,7 @@ supported_models = {
 
 def get_model(
     cfg: DictConfig, device: torch.device, n_classes: int, id2lbl: Dict, lbl2id: Dict
-) -> Tuple[nn.Module, Compose, List, List, AutoImageProcessor]:
+) -> Tuple[nn.Module, Compose, List, List, AutoImageProcessor, Any]:
     """
     Retrieves and initializes a model based on the provided configuration.
     Args:
@@ -73,7 +73,7 @@ def get_hf_model(
     id2label: dict,
     label2id: dict,
     cfg: DictConfig,
-) -> Tuple[nn.Module, Compose, List, List, AutoImageProcessor]:
+) -> Tuple[nn.Module, Compose, List, List, AutoImageProcessor, Any]:
     """
     Loads the HF model along with its configuration, processor, and transformations.
 
@@ -118,7 +118,11 @@ def get_hf_model(
         "size": {"max_height": cfg.model.input_size, "max_width": cfg.model.input_size},
         "pad_size": {"height": cfg.model.input_size, "width": cfg.model.input_size},
     }
-    model_kwargs: Dict[str, Any] = {"config": config, "ignore_mismatched_sizes": True}
+    model_kwargs: Dict[str, Any] = {
+        "config": config,
+        "ignore_mismatched_sizes": True,
+        "output_loading_info": cfg.smart_optim,
+    }
 
     if "yolos" in cfg.model.name:
         model_kwargs.update(
@@ -130,7 +134,12 @@ def get_hf_model(
         **model_kwargs,
     )
 
-    model = freeze_weights(model, cfg.freeze_backbone, cfg.partially_freeze_backbone)
+    loading_info = None
+
+    if cfg.smart_optim:
+        model, loading_info = model
+
+    # model = freeze_weights(model, cfg.freeze_backbone, cfg.partially_freeze_backbone)
 
     processor = AutoImageProcessor.from_pretrained(checkpoint, **processor_kwargs)
 
@@ -144,6 +153,7 @@ def get_hf_model(
         processor.image_mean,
         processor.image_std,
         processor,
+        loading_info,
     )
 
 

@@ -25,7 +25,10 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                 [
                     A.SmallestMaxSize(max_size=cfg.model.input_size, p=1.0),
                     A.RandomSizedBBoxSafeCrop(
-                        height=cfg.model.input_size, width=cfg.model.input_size, p=1.0
+                        height=cfg.model.input_size,
+                        width=cfg.model.input_size,
+                        erosion_rate=0.1,
+                        p=1.0,
                     ),
                 ],
                 p=0.2,
@@ -39,8 +42,8 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
             ),
             A.ConstrainedCoarseDropout(
                 num_holes_range=(1, 2),
-                hole_height_range=(0.05, 0.15),
-                hole_width_range=(0.05, 0.15),
+                hole_height_range=(0.02, 0.08),
+                hole_width_range=(0.02, 0.08),
                 fill=(114, 114, 114),
                 bbox_labels=box_labels,
                 p=0.05,
@@ -56,7 +59,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                     A.RandomGamma(gamma_limit=(60, 100), p=0.5),
                     A.RandomToneCurve(p=0.5),
                 ],
-                p=0.4,
+                p=0.3,
             ),
             A.OneOf(
                 [
@@ -81,7 +84,7 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                 ],
                 p=0.1,
             ),
-            A.CLAHE(clip_limit=1.5, p=0.15),
+            A.CLAHE(clip_limit=1.5, p=0.1),
         ],
         bbox_params=bbox_params,
     )
@@ -91,7 +94,10 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
                 [
                     A.SmallestMaxSize(max_size=cfg.model.input_size, p=1.0),
                     A.RandomSizedBBoxSafeCrop(
-                        height=cfg.model.input_size, width=cfg.model.input_size, p=1.0
+                        height=cfg.model.input_size,
+                        width=cfg.model.input_size,
+                        erosion_rate=0.1,
+                        p=1.0,
                     ),
                 ],
                 p=0.2,

@@ -19,8 +19,8 @@ download_data : False
 lr_back_factor : 10
 wait : False
 info : False
-min_area : 25.0
-min_viz : 0.2
+min_area : 15.0
+min_viz : 0.1
 min_width : 2.0
 min_height : 2.0
 aug : hard
@@ -29,7 +29,7 @@ freeze_backbone : False
 partially_freeze_backbone : False
 upload : False
 optim : 8bit
-threshold : 0.0
+threshold : 0.001
 
 mosaic:
   use : False
@@ -42,10 +42,12 @@ lin_start_factor : 0.001
 
 ema:
   use : True
-  decay : 0.9999
+  decay : 0.999
 
 ckpt:
   save : False
   load:
     model_only : False
     all : False
+
+smart_optim : False

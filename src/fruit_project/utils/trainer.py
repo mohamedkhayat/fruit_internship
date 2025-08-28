@@ -38,6 +38,7 @@ class Trainer:
         train_dl: DataLoader,
         test_dl: DataLoader,
         val_dl: DataLoader,
+        loading_info: Dict,
     ):
         """
         Initializes the Trainer object.
@@ -57,7 +58,7 @@ class Trainer:
         self.device: torch.device = device
         self.scaler = GradScaler("cuda")
         self.cfg: DictConfig = cfg
-        self.optimizer: Optimizer = self.get_optimizer()
+        self.optimizer: Optimizer = self.get_optimizer(loading_info)
         self.processor: AutoImageProcessor = processor
         self.name: str = name
         self.early_stopping: EarlyStopping = EarlyStopping(
@@ -127,7 +128,7 @@ class Trainer:
             )
         return scheduler
 
-    def get_optimizer(self) -> AdamW:
+    def get_optimizer(self, loading_info=None) -> AdamW:
         """
         Creates an AdamW optimizer with a differential learning rate for the backbone
         and the rest of the model (head), following standard fine-tuning practices.
@@ -135,17 +136,53 @@ class Trainer:
         Returns:
             AdamW: The configured optimizer.
         """
-        head_params = [p for p in self.model.parameters() if p.requires_grad]
+        if not self.cfg.smart_optim:
+            head_params = [p for p in self.model.parameters() if p.requires_grad]
 
-        backbone_params = [
-            p
-            for n, p in self.model.named_parameters()
-            if n.startswith("model.backbone") or n.startswith("vit") and p.requires_grad
-        ]
+            backbone_params = [
+                p
+                for n, p in self.model.named_parameters()
+                if n.startswith("model.backbone")
+                or n.startswith("vit")
+                and p.requires_grad
+            ]
 
-        backbone_param_ids = {id(p) for p in backbone_params}
+            backbone_param_ids = {id(p) for p in backbone_params}
 
-        head_params_final = [p for p in head_params if id(p) not in backbone_param_ids]
+            head_params_final = [
+                p for p in head_params if id(p) not in backbone_param_ids
+            ]
+
+            param_dicts = [
+                {
+                    "params": head_params_final,
+                    "lr": self.cfg.lr,
+                },
+                {
+                    "params": backbone_params,
+                    "lr": self.cfg.lr / self.cfg.lr_back_factor,
+                },
+            ]
+
+        else:
+            mismatched_keys = set(loading_info.get("mismatched_keys", []))
+            missing_keys = set(loading_info.get("missing_keys", []))
+
+            new_param_names = mismatched_keys.union(missing_keys)
+
+            head_params_final = []
+            backbone_params = []
+
+            for name, param in self.model.named_parameters():
+                if not param.requires_grad:
+                    continue
+
+                param_is_new = any(key in name for key in new_param_names)
+
+                if param_is_new:
+                    head_params_final.append(param)
+                else:
+                    backbone_params.append(param)
 
         param_dicts = [
             {
@@ -157,7 +194,6 @@ class Trainer:
                 "lr": self.cfg.lr / self.cfg.lr_back_factor,
             },
         ]
-
         print(
             f"Backbone params: {sum(p.numel() for p in backbone_params)} parameters at LR {self.cfg.lr / self.cfg.lr_back_factor}"
         )

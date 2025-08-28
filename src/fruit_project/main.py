@@ -37,7 +37,7 @@ def main(cfg: DictConfig):
 
     train_ds, test_ds, val_ds = make_datasets(cfg)
 
-    model, transforms, mean, std, processor = get_model(
+    model, transforms, mean, std, processor, loading_info = get_model(
         cfg,
         device,
         len(train_ds.labels),
@@ -66,7 +66,16 @@ def main(cfg: DictConfig):
     )
 
     trainer = Trainer(
-        model, processor, device, cfg, name, run, train_dl, test_dl, val_dl
+        model,
+        processor,
+        device,
+        cfg,
+        name,
+        run,
+        train_dl,
+        test_dl,
+        val_dl,
+        loading_info,
     )
     print("Setup complete.")
 
