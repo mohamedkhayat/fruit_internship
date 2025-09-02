@@ -49,12 +49,13 @@ class AlbumentationsMosaicDataset(Dataset):
             target_size=(self.target_size, self.target_size),
             cell_shape=(self.target_size // 2, self.target_size // 2),
             fill=(114, 114, 114),
-            center_range=(0.3, 0.7),
+            center_range=(0.45, 0.65),
             metadata_key="mosaic_metadata",
             p=1.0,
         )
 
-        self.bbox_params = get_bbox_params(cfg)
+        train_bbox_params, _ = get_bbox_params(cfg)
+        self.bbox_params = train_bbox_params
         self.hard_transforms = hard_transforms
         self.easy_transforms = easy_transforms
 
@@ -124,9 +125,9 @@ class AlbumentationsMosaicDataset(Dataset):
 
             if len(boxes) > 0:
                 for box, label in zip(boxes, labels):
-                    # clipped_box = self._validate_and_clip_bbox(
-                    #     box, img_width, img_height
-                    # )
+                    clipped_box = self._validate_and_clip_bbox(
+                        box, img_width, img_height
+                    )
                     clipped_box = box
                     if clipped_box is not None:
                         coco_boxes.append(clipped_box)
@@ -148,7 +149,7 @@ class AlbumentationsMosaicDataset(Dataset):
 
         if len(primary_boxes) > 0:
             for box, label in zip(primary_boxes, primary_labels):
-                # clipped_box = self._validate_and_clip_bbox(box, img_width, img_height)
+                clipped_box = self._validate_and_clip_bbox(box, img_width, img_height)
                 clipped_box = box
                 if clipped_box is not None:
                     primary_coco_boxes.append(clipped_box)
@@ -181,7 +182,7 @@ class AlbumentationsMosaicDataset(Dataset):
 
         if len(boxes) > 0:
             for box, label in zip(boxes, labels):
-                # clipped_box = self._validate_and_clip_bbox(box, img_width, img_height)
+                clipped_box = self._validate_and_clip_bbox(box, img_width, img_height)
                 clipped_box = box
                 if clipped_box is not None:
                     coco_boxes.append(clipped_box)

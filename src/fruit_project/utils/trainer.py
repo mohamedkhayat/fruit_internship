@@ -170,33 +170,35 @@ class Trainer:
 
             new_param_names = mismatched_keys.union(missing_keys)
 
-            head_params_final = []
-            backbone_params = []
-
+            head_params_final, neck_params, backbone_params = [], [], []
             for name, param in self.model.named_parameters():
                 if not param.requires_grad:
                     continue
 
                 param_is_new = any(key in name for key in new_param_names)
 
-                if param_is_new:
+                if "backbone" in name or "vit" in name:
+                    backbone_params.append(param)
+                elif param_is_new:
                     head_params_final.append(param)
                 else:
-                    backbone_params.append(param)
+                    neck_params.append(param)
 
-        param_dicts = [
-            {
-                "params": head_params_final,
-                "lr": self.cfg.lr,
-            },
-            {
-                "params": backbone_params,
-                "lr": self.cfg.lr / self.cfg.lr_back_factor,
-            },
-        ]
+            param_dicts = [
+                {"params": head_params_final, "lr": self.cfg.lr},
+                {"params": neck_params, "lr": self.cfg.lr / self.cfg.lr_neck_factor},
+                {
+                    "params": backbone_params,
+                    "lr": self.cfg.lr / self.cfg.lr_back_factor,
+                },
+            ]
         print(
             f"Backbone params: {sum(p.numel() for p in backbone_params)} parameters at LR {self.cfg.lr / self.cfg.lr_back_factor}"
         )
+        if self.cfg.smart_optim:
+            print(
+                f"Neck params: {sum(p.numel() for p in neck_params)} parameters at LR {self.cfg.lr / self.cfg.lr_neck_factor}"
+            )
         print(
             f"Head (Encoder, Decoder, Neck, etc.) params: {sum(p.numel() for p in head_params_final)} parameters at LR {self.cfg.lr}"
         )
@@ -283,6 +285,49 @@ class Trainer:
             )
         return formatted_targets
 
+    def forward_step_map(self, batch_idx, batch):
+        with torch.autocast(device_type=self.device.type, dtype=torch.float16):
+            out = self.model(**batch)
+
+        batch_loss = out.loss / self.accum_steps
+        loss_dict = out.loss_dict
+        self.scaler.scale(batch_loss).backward()
+        if (batch_idx + 1) % self.accum_steps == 0:
+            self.scaler.unscale_(self.optimizer)
+            torch.nn.utils.clip_grad_norm_(
+                self.model.parameters(), max_norm=self.cfg.model.grad_max_norm
+            )
+            self.scaler.step(self.optimizer)
+            self.scheduler.step()
+            self.scaler.update()
+            self.optimizer.zero_grad(set_to_none=True)
+        return out, loss_dict
+
+    def forward_step_fp32(self, batch_idx, batch):
+        out = self.model(**batch)
+        batch_loss = out.loss / self.accum_steps
+        loss_dict = out.loss_dict
+        batch_loss.backward()
+        if (batch_idx + 1) % self.accum_steps == 0:
+            torch.nn.utils.clip_grad_norm_(
+                self.model.parameters(), max_norm=self.cfg.model.grad_max_norm
+            )
+            self.optimizer.step()
+            self.scheduler.step()
+            self.optimizer.zero_grad(set_to_none=True)
+        return out, loss_dict
+
+    def forward_step(self, batch_idx, batch, use_fp16, current_epoch):
+        if use_fp16:
+            out, loss_dict = self.forward_step_map(batch_idx, batch)
+        else:
+            out, loss_dict = self.forward_step_fp32(batch_idx, batch)
+
+        if self.ema and current_epoch >= self.cfg.warmup_epochs:
+            self.ema.update()
+
+        return out, loss_dict
+
     def train(
         self,
         current_epoch: int,
@@ -316,26 +361,9 @@ class Trainer:
 
         for batch_idx, batch in enumerate(progress_bar):
             batch = self.move_batch_to_device(batch)
-
-            with torch.autocast(device_type=self.device.type, dtype=torch.float16):
-                out = self.model(**batch)
-                batch_loss = out.loss / self.accum_steps
-                loss_dict = out.loss_dict
-
-            self.scaler.scale(batch_loss).backward()
-
-            if (batch_idx + 1) % self.accum_steps == 0:
-                self.scaler.unscale_(self.optimizer)
-                torch.nn.utils.clip_grad_norm_(
-                    self.model.parameters(), max_norm=self.cfg.model.grad_max_norm
-                )
-                self.scaler.step(self.optimizer)
-                self.scheduler.step()
-                self.scaler.update()
-                self.optimizer.zero_grad(set_to_none=True)
-
-                if self.ema and current_epoch >= self.cfg.warmup_epochs:
-                    self.ema.update()
+            out, loss_dict = self.forward_step(
+                batch_idx, batch, self.cfg.fp16, current_epoch
+            )
 
             epoch_loss["loss"] += out.loss.item()
             epoch_loss["class_loss"] += loss_dict.get(
