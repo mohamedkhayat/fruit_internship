@@ -1,5 +1,5 @@
 defaults:
-  - model: detrv2_50
+  - model: rtdetrv2_50
   - _self_
 
 effective_batch_size: 64
@@ -21,9 +21,6 @@ lr_neck_factor : 5
 wait : False
 info : False
 min_area : 15.0
-min_viz : 0.1
-min_width : 2.0
-min_height : 2.0
 aug : hard
 do_sample : True
 freeze_backbone : False
