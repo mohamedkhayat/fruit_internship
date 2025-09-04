@@ -135,6 +135,6 @@ def get_bbox_params(cfg):
         "clip": True,
     }
     return (
-        A.BboxParams(**params.update({"min_area": cfg.min_area})),
-        A.BBoxParams(**params),
+        A.BboxParams(**{**params, **{"min_area": cfg.min_area}}),
+        A.BboxParams(**params),
     )
