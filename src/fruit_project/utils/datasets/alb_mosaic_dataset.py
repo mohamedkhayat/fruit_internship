@@ -194,7 +194,7 @@ class AlbumentationsMosaicDataset(Dataset):
             transform_pipeline = self.easy_compose
 
         else:
-            fallback_hard_pipeline = [A.Resize(self.target_size, self.target_size)]
+            fallback_hard_pipeline = [A.Resize(self.target_height, self.target_width)]
             if self.hard_transforms:
                 fallback_hard_pipeline.extend(self.hard_transforms.transforms)
 
@@ -209,7 +209,7 @@ class AlbumentationsMosaicDataset(Dataset):
             return augmented["image"], augmented["bboxes"], augmented["labels"]
         except Exception as e:
             tqdm.write(f"Fallback transform failed for idx {idx}: {e}")
-            resized = A.Resize(self.target_size, self.target_size)(image=img)
+            resized = A.Resize(self.target_height, self.target_width)(image=img)
             return resized["image"], [], []
 
     def __len__(self):
