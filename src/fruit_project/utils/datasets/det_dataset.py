@@ -56,7 +56,6 @@ class DET_DS(Dataset):
         label_dir: str,
         config_file: str,
         transforms: Compose = None,
-        input_size: int = 224,
         processor=None,
         normalize=False,
     ):
@@ -65,7 +64,6 @@ class DET_DS(Dataset):
         self.image_dir = self.root_dir / image_dir / self.type
         self.label_dir = self.root_dir / label_dir / self.type
         self.transforms = transforms
-        self.input_size = input_size
         self.config_dir = self.root_dir / config_file
         self.processor = processor
         self.normalize = normalize

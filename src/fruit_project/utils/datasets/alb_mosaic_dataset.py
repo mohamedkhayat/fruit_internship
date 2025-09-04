@@ -27,7 +27,8 @@ class AlbumentationsMosaicDataset(Dataset):
         cfg=None,
     ):
         self.dataset = dataset
-        self.target_size = cfg.model.input_size
+        self.target_height = cfg.model.input_height
+        self.target_width = cfg.model.input_width
         self.mosaic_prob = cfg.mosaic.prob
         self.disable_mosaic_epochs = cfg.mosaic.disable_epoch
         self.current_epoch = current_epoch
@@ -41,13 +42,12 @@ class AlbumentationsMosaicDataset(Dataset):
         self.image_paths = dataset.image_paths
         self.label_paths = dataset.label_paths
         self.config_dir = dataset.config_dir
-        self.input_size = dataset.input_size
         self.normalize = cfg.model.do_normalize
 
         self.mosaic_transform = A.Mosaic(
             grid_yx=(2, 2),
-            target_size=(self.target_size, self.target_size),
-            cell_shape=(self.target_size // 2, self.target_size // 2),
+            target_size=(self.target_height, self.target_width),
+            cell_shape=(self.target_height // 2, self.target_width // 2),
             fill=(114, 114, 114),
             center_range=(0.45, 0.65),
             metadata_key="mosaic_metadata",
@@ -61,7 +61,7 @@ class AlbumentationsMosaicDataset(Dataset):
 
         mosaic_pipeline = [
             self.mosaic_transform,
-            A.Resize(self.target_size, self.target_size),
+            A.Resize(self.target_height, self.target_width),
         ]
 
         if self.hard_transforms:
@@ -72,7 +72,7 @@ class AlbumentationsMosaicDataset(Dataset):
             bbox_params=self.bbox_params,
         )
 
-        easy_pipeline = [A.Resize(self.target_size, self.target_size)]
+        easy_pipeline = [A.Resize(self.target_height, self.target_width)]
         if self.easy_transforms:
             easy_pipeline.extend(self.easy_transforms.transforms)
 

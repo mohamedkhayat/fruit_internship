@@ -23,10 +23,13 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
         [
             A.Compose(
                 [
-                    A.SmallestMaxSize(max_size=cfg.model.input_size, p=1.0),
+                    A.SmallestMaxSize(
+                        max_size_hw=(cfg.model.input_height, cfg.model.input_width),
+                        p=1.0,
+                    ),
                     A.RandomSizedBBoxSafeCrop(
-                        height=cfg.model.input_size,
-                        width=cfg.model.input_size,
+                        height=cfg.model.input_height,
+                        width=cfg.model.input_width,
                         erosion_rate=0.1,
                         p=1.0,
                     ),
@@ -92,10 +95,13 @@ def get_transforms(cfg: DictConfig, id2label: Dict[int, str]) -> Dict[str, A.Com
         [
             A.Compose(
                 [
-                    A.SmallestMaxSize(max_size=cfg.model.input_size, p=1.0),
+                    A.SmallestMaxSize(
+                        max_size_hw=(cfg.model.input_height, cfg.model.input_width),
+                        p=1.0,
+                    ),
                     A.RandomSizedBBoxSafeCrop(
-                        height=cfg.model.input_size,
-                        width=cfg.model.input_size,
+                        height=cfg.model.input_height,
+                        width=cfg.model.input_width,
                         erosion_rate=0.1,
                         p=1.0,
                     ),

@@ -115,8 +115,11 @@ def get_hf_model(
         "do_resize": True,
         "do_pad": True,
         "do_normalize": cfg.model.do_normalize,
-        "size": {"max_height": cfg.model.input_size, "max_width": cfg.model.input_size},
-        "pad_size": {"height": cfg.model.input_size, "width": cfg.model.input_size},
+        "size": {
+            "max_height": cfg.model.input_height,
+            "max_width": cfg.model.input_width,
+        },
+        "pad_size": {"height": cfg.model.input_height, "width": cfg.model.input_width},
     }
     model_kwargs: Dict[str, Any] = {
         "config": config,
