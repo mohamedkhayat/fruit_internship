@@ -1,4 +1,5 @@
 name : yolos_base
-input_size : 640
+input_height : 640
+input_width : 640
 do_normalize : True
 grad_max_norm : 1.0

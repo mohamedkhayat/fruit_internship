@@ -1,5 +1,6 @@
 name : rtdetrv2_50
-input_size : 640
+input_height : 640
+input_width : 640
 decoder_method : default
 do_normalize : False
 grad_max_norm : 0.1
